@@ -27,6 +27,11 @@ class EnglishDict:
 `@provides("IDictionary")` registers this component in the service registry under the contract name `"IDictionary"`. Any other component can now say "I need an IDictionary" and get this one.
 :::
 
+::: {.callout-important}
+## You don't register against consumers
+`@provides(IDictionary)` is enough. Don't add a `@requires(checker=ISpellChecker)` "for symmetry" — the kernel wires it for you. Consumers point at providers; providers don't point back. (More in [Decorators reference](../ref/decorators.qmd#provides).)
+:::
+
 ## Requiring a Service
 
 ```python
@@ -72,16 +77,23 @@ class SpellChecker: ...
 No magic strings to typo. IDE "find all references" works. Import errors catch mismatches at load time. Both forms work — strings for backward compat, types for new code.
 :::
 
-## Unified @requires
+## Unified @requires — but the shape changes the meaning
 
-One decorator handles all injection modes. The type hint tells the kernel what you need:
+One decorator, four shapes. The type hint tells the kernel what you need — and **also whether you can boot before it exists.**
 
-| Declaration | What `self.rt.X` is | Use case |
-|---|---|---|
-| `@requires(x=IContract)` | Single service (highest ranked) | One config, one logger |
-| `@requires(x=list[IContract])` | List of all matching | All dictionaries, all plugins |
-| `@requires(x=IContract, key="lang")` | Dict keyed by property | `{"EN": en, "FR": fr}` |
-| `@requires(x=IContract, optional=True)` | Single or `None` | Optional cache |
+| Declaration | What `self.rt.X` is | Boot semantics | Use case |
+|---|---|---|---|
+| `@requires(x=IContract)` | Single highest-ranked service | **Boot-blocking** | The one config, the one logger |
+| `@requires(x=list[IContract])` | Live list of all matching | **Non-blocking** (reactive) | All dictionaries, all plugins |
+| `@requires(x=IContract, key="lang")` | Live dict keyed by property | **Non-blocking** (reactive) | `{"EN": en, "FR": fr}` |
+| `@requires(x=IContract, optional=True)` | Single or `None` | **Non-blocking** | Optional cache |
+
+::: {.callout-important}
+## A shadow semantic — read this once
+The bare scalar form is the only one that means "I cannot start until this exists." The three other shapes look like dependencies in code but behave like *subscriptions on the registry*: your component boots regardless of who's there, and the runtime updates `self.rt.x` reactively as providers come and go.
+
+Practical consequence: if you wrote `@requires(plugins=list[IPlugin])`, your component activates with `self.rt.plugins == []` and the list fills as providers boot. Don't put logic in `@lifecycle.activate` that assumes the list is populated — put it in an `@effect` (Tutorial 3) so it re-runs as providers arrive.
+:::
 
 ## self.rt — The Reactive Runtime
 

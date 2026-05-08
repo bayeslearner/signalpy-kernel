@@ -42,6 +42,19 @@ Checker ready with 2 dictionaries
 `@requires(dictionaries=list[IDictionary])` injects a *list* of all services matching the contract. The `list[C]` type hint tells the kernel "I want all of them."
 :::
 
+::: {.callout-important}
+## `list[X]` is a subscription, not a dependency
+The scalar form `@requires(dictionary=IDictionary)` from Tutorial 2 was a **boot-blocking** dependency: the spell checker waited for a dictionary to exist before activating. The aggregate form `@requires(dictionaries=list[IDictionary])` looks similar in code but behaves differently — it's a **reactive subscription on the registry**:
+
+- The spell checker activates immediately, even with zero dictionaries.
+- `self.rt.dictionaries` starts as `[]` and the registry listener appends/removes providers as they come and go.
+- No toposort edge is created, so dictionaries don't have to boot first.
+
+That's why the same decorator name (`@requires`) carries two different boot meanings — and why aggregates pair naturally with `@effect`: the activate method runs once, but the effect re-runs every time the list changes. If you depend on the list being populated, put that logic in `@effect`, not in `activate`.
+
+The same applies to `@requires(..., key="prop")` (reactive map) and `@requires(..., optional=True)` (single or `None`) — both non-blocking. Only the bare scalar shape blocks. The [Decorators reference](../ref/decorators.qmd#requires) has the full table.
+:::
+
 ## Reactive Effects
 
 An `@effect` is a method that re-runs whenever its tracked dependencies change. Read `self.rt.dictionaries` inside an effect → the reactive engine tracks that. When the list changes, the effect re-runs automatically.
