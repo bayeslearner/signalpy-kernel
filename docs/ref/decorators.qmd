@@ -52,21 +52,57 @@ Declare services this component provides. Accepts types or strings.
 @provides(IDictionary, ICache)  # multiple
 ```
 
+::: {.callout-important}
+## Providers don't register against consumers
+`@provides(IFoo)` is the only thing a provider needs to be discoverable.
+The kernel's registry listener wires the new provider into every consumer
+of that contract automatically — at boot, on `hot_add()`, on hot-remove.
+There is no `manager.attach(self)`, no `register()` call, and **you should
+not add a `@requires(consumer=IConsumer)` "for symmetry."** Consumers point
+at providers; providers do not point back. If your component never reads
+`self.rt.consumer`, that requirement is dead weight that confuses boot
+order and the dependency graph.
+:::
+
 ### @requires
 
 ```python
 @requires(*, optional: bool = False, key: str = "", **deps: str | type)
 ```
 
-Declare services this component requires. One decorator, three injection modes.
-See [Contracts](contracts.qmd) for the built-in contract types.
+Declare services this component reads. One decorator, four shapes — distinguished
+by the type annotation and keyword arguments. **The shape determines boot
+semantics**, not just injection style:
+
+| Shape | Field becomes | Boot semantics |
+|---|---|---|
+| `@requires(x=IFoo)` | single highest-ranked `IFoo` | **Boot-blocking.** Toposort puts an edge from every `IFoo` provider to this component. Activation waits. |
+| `@requires(x=list[IFoo])` | live `list[IFoo]` | **Non-blocking, reactive.** No toposort edge. Component boots with `[]` and the registry listener appends/removes providers as they come online or are hot-removed. |
+| `@requires(x=IFoo, key="prop")` | live `dict[str, IFoo]` keyed by service property | **Non-blocking, reactive.** No toposort edge. Like aggregate, but indexed by a service property. |
+| `@requires(x=IFoo, optional=True)` | single `IFoo` or `None` | **Non-blocking.** No toposort edge. Component is valid with no provider. |
 
 ```python
-@requires(config=IConfig)                   # single (highest-ranked)
-@requires(dicts=list[IDictionary])          # aggregate: all as list
-@requires(dicts=IDictionary, key="language") # map: dict keyed by property
-@requires(cache=ICache, optional=True)      # optional: None if missing
+@requires(config=IConfig)                    # single — boot-blocking
+@requires(dicts=list[IDictionary])           # aggregate — reactive, non-blocking
+@requires(dicts=IDictionary, key="language") # map — reactive, non-blocking
+@requires(cache=ICache, optional=True)       # optional — non-blocking
 ```
+
+::: {.callout-tip}
+## The three non-blocking shapes look like dependencies but behave like subscriptions
+`list[X]`, `key=`, and `optional=True` don't create boot-order constraints — they're
+reactive subscriptions on the registry. Your component starts up regardless of who's
+there; the runtime keeps your view in sync as providers come and go. Use `@effect`
+to react to changes, or just read `self.rt.x` whenever you need the current value.
+
+Only the bare scalar shape `@requires(x=IFoo)` says "I cannot start until this
+exists." Use it for the things you genuinely cannot run without (config, logger,
+the one true backend).
+:::
+
+See [Contracts](contracts.qmd) for the built-in contract types and
+[Tutorial 3 — Dynamic Services](../guide/03-dynamic-services.qmd) for the
+aggregate/reactive pattern in depth.
 
 ## Reactive
 
