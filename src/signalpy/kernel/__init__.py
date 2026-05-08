@@ -1026,6 +1026,12 @@ class Kernel:
                     "computed": [cd.fn.__name__ for cd in ci.meta.computed_defs],
                     "effects": [ed.fn.__name__ for ed in ci.meta.effect_defs],
                 },
+                # Boot observability — populated by LifecycleManager.activate.
+                "activated_at": ci.activated_at,
+                "activation_ms": (
+                    round(ci.activation_ms, 2) if ci.activation_ms is not None else None
+                ),
+                "error": str(ci.error) if ci.error else None,
             }
 
             # Dependency edges: this component requires contracts provided by others.

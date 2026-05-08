@@ -94,6 +94,9 @@ class ComponentInstance:
     error: Exception | None = None
     parent: str | None = None           # parent instance name (component tree)
     children: list[str] = field(default_factory=list)  # child instance names
+    # Boot observability — set by activate() on both success and failure paths.
+    activated_at: float | None = None   # unix timestamp at activation completion
+    activation_ms: float | None = None  # wall-time spent in activate_fn (ms)
     # Reactive disposables — Effects and Computeds created during activation
     _disposables: list = field(default_factory=list)
     # Supervision restart tracking
@@ -240,12 +243,20 @@ class LifecycleManager:
     # ── Activation ──────────────────────────────────────────────────
 
     async def activate(self, name: str, runtime_builder) -> None:
-        """Activate a single component instance."""
+        """Activate a single component instance.
+
+        Records `activation_ms` (wall-time spent in activate_fn) and
+        `activated_at` (unix timestamp at completion) on the instance
+        for boot-observability tooling. Captured on both success and
+        failure paths so failed components still expose how long they
+        ran before they errored.
+        """
         ci = self._instances[name]
         if ci.state != State.RESOLVED:
             raise RuntimeError(f"Cannot activate {name}: state is {ci.state.name}")
 
         ci.state = State.ACTIVATING
+        t0 = time.perf_counter()
         try:
             # Create the POPO instance
             ci.instance = ci.factory_class()
@@ -273,12 +284,16 @@ class LifecycleManager:
                     await result
 
             ci.state = State.ACTIVE
-            log.info("Activated: %s", name)
+            ci.activation_ms = (time.perf_counter() - t0) * 1000.0
+            ci.activated_at = time.time()
+            log.info("Activated: %s in %.1fms", name, ci.activation_ms)
 
         except Exception as exc:
             ci.state = State.ERRORED
             ci.error = exc
-            log.exception("Activation failed: %s", name)
+            ci.activation_ms = (time.perf_counter() - t0) * 1000.0
+            ci.activated_at = time.time()
+            log.exception("Activation failed: %s after %.1fms", name, ci.activation_ms)
             raise
 
     async def activate_all(self, runtime_builder) -> None:
