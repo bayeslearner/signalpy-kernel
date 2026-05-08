@@ -23,7 +23,7 @@ class ItemModel(BaseModel):
     value: int = 0
 
 
-@component("trait-demo", version="2.0", depends=["config", "logging"],
+@component("trait-demo", version="2.0",
            rest={"prefix": "/demo"})
 @provides("ITraitDemo")
 @requires(config="IConfig", logger="ILogger", storage="IStorage")
@@ -44,7 +44,7 @@ class TraitDemoComponent:
         self._events.append(data)
 
 
-@component("bundled-app", version="1.0", depends=["config", "logging"],
+@component("bundled-app", version="1.0",
            rest={"prefix": "/bundled"},
            mcp={"name": "bundled-tools"})
 @provides("IBundled")
@@ -59,7 +59,7 @@ class BundledApp:
         return {"pong": True}
 
 
-@component("target-demo", version="1.0", depends=["config"])
+@component("target-demo", version="1.0")
 @provides("ITargetDemo")
 @requires(config="IConfig")
 class TargetDemoComponent:
@@ -149,7 +149,7 @@ class TestSubscribe:
         await kernel.shutdown()
 
     async def test_multiple_subscriptions(self):
-        @component("multi-sub", depends=["config"])
+        @component("multi-sub")
         @requires(config="IConfig")
         class MultiSub:
             @lifecycle.activate
@@ -283,7 +283,7 @@ class TestTargeted:
 
 # ── rt.spawn() — runtime component tree ────────────────────────────
 
-@component("child-worker", version="1.0", depends=["config"])
+@component("child-worker", version="1.0")
 @requires(config="IConfig")
 class ChildWorker:
     @lifecycle.activate
@@ -299,7 +299,7 @@ class ChildWorker:
         pass
 
 
-@component("parent-manager", version="1.0", depends=["config"])
+@component("parent-manager", version="1.0")
 @requires(config="IConfig")
 class ParentManager:
     @lifecycle.activate
@@ -337,7 +337,7 @@ class TestSpawn:
     async def test_shutdown_deactivates_children_before_parent(self):
         order = []
 
-        @component("ordered-parent", depends=["config"])
+        @component("ordered-parent")
         @requires(config="IConfig")
         class OrderedParent:
             @lifecycle.activate
@@ -349,7 +349,7 @@ class TestSpawn:
             def deactivate(self, rt):
                 order.append("parent")
 
-        @component("ordered-child", depends=["config"])
+        @component("ordered-child")
         @requires(config="IConfig")
         class OrderedChild:
             @lifecycle.activate

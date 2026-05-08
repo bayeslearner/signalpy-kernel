@@ -414,7 +414,7 @@ class TestKernelBoot:
             @lifecycle.activate
             def activate(self): self.ok = True
 
-        @component("mid", depends=["leaf"])
+        @component("mid")
         @requires(leaf="ILeaf")
         class Mid:
             @lifecycle.activate
@@ -472,7 +472,7 @@ class TestReactiveRuntime:
             def activate(self):
                 self.version = 1
 
-        @component("consumer-rt", depends=["provider-rt"])
+        @component("consumer-rt")
         @requires(svc="ISvc")
         class Consumer:
             @lifecycle.activate
@@ -501,7 +501,7 @@ class TestReactiveRuntime:
             def activate(self):
                 self.value = 42
 
-        @component("comp-consumer", depends=["comp-provider"])
+        @component("comp-consumer")
         @requires(svc="IComp")
         class CompConsumer:
             @lifecycle.activate
@@ -534,7 +534,7 @@ class TestReactivePropagation:
             def activate(self):
                 self.version = 1
 
-        @component("consumer-prop", depends=["svc-low"])
+        @component("consumer-prop")
         @requires(svc="IProp")
         class Consumer:
             @lifecycle.activate
@@ -588,11 +588,15 @@ class TestAggregateRequires:
             def activate(self):
                 self.name = "b"
 
-        @component("collector", depends=["item-a", "item-b"])
+        @component("collector")
         @requires(items=list[IItem])
         class Collector:
             @lifecycle.activate
             def activate(self):
+                self.count = 0
+
+            @effect
+            def update_count(self):
                 self.count = len(self.rt.items)
 
         kernel = Kernel()

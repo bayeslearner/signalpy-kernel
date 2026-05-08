@@ -92,7 +92,7 @@ class HttpEnglishDict:
     def check_word(self, word):
         return word.lower() in self.words
 
-@component("spell-http", version="1.0", depends=["dict-en-http"],
+@component("spell-http", version="1.0",
            rest={"prefix": "/spell", "version": "v1"})
 @provides("ISpellChecker")
 @requires(dicts=IDictionary, key="language")

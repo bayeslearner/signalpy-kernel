@@ -46,7 +46,7 @@ class QueryParams(BaseModel):
     table: str = "users"
     limit: int = 10
 
-@component("tenant-db", version="1.0", depends=["config", "credentials"])
+@component("tenant-db", version="1.0")
 @requires(config="IConfig", creds="ICredentials")
 class TenantDatabase:
 

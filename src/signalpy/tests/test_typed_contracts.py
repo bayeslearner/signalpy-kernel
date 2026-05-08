@@ -240,7 +240,7 @@ class TestDirectSelfInjection:
             def check_word(self, word):
                 return word in self.words
 
-        @component("checker-typed", depends=["dict-impl"])
+        @component("checker-typed")
         @requires(dictionary=IDictionary)
         class Checker:
             dictionary: IDictionary  # annotation for IDE
@@ -280,7 +280,7 @@ class TestDirectSelfInjection:
             def check_word(self, word):
                 return word in self.words
 
-        @component("checker-anno", depends=["dict-impl2"])
+        @component("checker-anno")
         class Checker:
             dictionary: IDictionary  # this alone is the requirement + type hint
 
@@ -308,7 +308,7 @@ class TestDirectSelfInjection:
         class DictImpl:
             pass
 
-        @component("consumer3", depends=["dict-impl3"])
+        @component("consumer3")
         @requires(d="IDict3")
         class Consumer:
             # No annotation → no self.d injection

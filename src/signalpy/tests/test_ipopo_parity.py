@@ -114,7 +114,7 @@ class SpellCheckerMap:
         return {"misspelled": misspelled}
 
 
-@component("best-consumer", version="1.0", depends=["dict-en", "dict-fr"])
+@component("best-consumer", version="1.0")
 @requires(best_dict="IDictionary")
 class BestDictConsumer:
     """Consumes only the highest-ranked dictionary (single = highest-ranked)."""

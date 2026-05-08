@@ -30,7 +30,7 @@ class LeafComponent:
         self.activated = False
 
 
-@component("mid", version="1.0", depends=["leaf"])
+@component("mid", version="1.0")
 @provides("IMid")
 @requires(leaf="ILeaf")
 class MidComponent:
@@ -44,7 +44,7 @@ class MidComponent:
         return {"echo": msg}
 
 
-@component("top", version="1.0", depends=["mid"])
+@component("top", version="1.0")
 @requires(mid="IMid")
 class TopComponent:
     @lifecycle.activate
@@ -267,10 +267,14 @@ class TestLifecycleManager:
         assert order.index("mid") < order.index("top")
 
     def test_circular_dependency_raises(self):
-        @component("circ-a", depends=["circ-b"])
+        @component("circ-a")
+        @provides("ICircA")
+        @requires(b="ICircB")
         class CircA: pass
 
-        @component("circ-b", depends=["circ-a"])
+        @component("circ-b")
+        @provides("ICircB")
+        @requires(a="ICircA")
         class CircB: pass
 
         lm = LifecycleManager()
@@ -401,12 +405,14 @@ class TestKernelIntegration:
         order = []
 
         @component("first")
+        @provides("IFirst")
         class First:
             @lifecycle.deactivate
             def deactivate(self, rt):
                 order.append("first")
 
-        @component("second", depends=["first"])
+        @component("second")
+        @requires(first="IFirst")
         class Second:
             @lifecycle.deactivate
             def deactivate(self, rt):

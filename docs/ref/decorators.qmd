@@ -20,12 +20,12 @@ subtitle: "All 11 decorators — signature, parameters, example."
 ### @component
 
 ```python
-@component(name: str, *, namespace: str = "", version: str = "0.0.0",
-           depends: list[str] | None = None, **transports)
+@component(name: str, *, namespace: str = "", version: str = "0.0.0", **transports)
 ```
 
 Mark a class as a component factory. Transport configuration (formerly `@api`)
-is passed as keyword arguments.
+is passed as keyword arguments. Boot order is derived entirely from `@requires`
+contracts -- there is no separate ordering parameter.
 
 ```python
 @component("greeter", version="1.0")

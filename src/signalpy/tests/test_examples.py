@@ -25,7 +25,7 @@ class TestSecretRotation:
         """Credential change in config triggers consumer @effect."""
         reconnect_log = []
 
-        @component("test-db", depends=["config", "credentials"])
+        @component("test-db")
         @requires(config="IConfig", creds="ICredentials")
         class TestDB:
             @lifecycle.activate
