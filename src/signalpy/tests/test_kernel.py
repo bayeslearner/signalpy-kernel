@@ -232,6 +232,59 @@ class TestKernelGraph:
         await kernel.shutdown()
 
 
+class TestBootTiming:
+    """Activation timing capture on ComponentInstance + kernel.graph()."""
+
+    @pytest.mark.asyncio
+    async def test_activation_ms_set_on_success(self):
+        @component("timed-svc")
+        class TimedSvc:
+            @lifecycle.activate
+            def activate(self):
+                pass
+
+        kernel = Kernel()
+        kernel.discover([TimedSvc])
+        await kernel.boot()
+
+        ci = kernel.lifecycle.get_instance("timed-svc")
+        assert ci.activation_ms is not None
+        assert ci.activation_ms >= 0.0
+        assert ci.activated_at is not None
+
+        g = kernel.graph()
+        info = g["components"]["timed-svc"]
+        assert info["activation_ms"] == round(ci.activation_ms, 2)
+        assert info["activated_at"] == ci.activated_at
+        assert info["error"] is None
+
+        await kernel.shutdown()
+
+    @pytest.mark.asyncio
+    async def test_activation_ms_set_on_failure(self):
+        # Kernel.boot() catches per-component activation failures and skips the
+        # offender, so we test by booting and inspecting the failed instance.
+        @component("broken-svc")
+        class BrokenSvc:
+            @lifecycle.activate
+            def activate(self):
+                raise RuntimeError("boom")
+
+        kernel = Kernel()
+        kernel.discover([BrokenSvc])
+        await kernel.boot()
+
+        ci = kernel.lifecycle.get_instance("broken-svc")
+        assert ci.activation_ms is not None
+        assert ci.activated_at is not None
+        assert ci.state.name == "ERRORED"
+
+        g = kernel.graph()
+        info = g["components"]["broken-svc"]
+        assert info["activation_ms"] is not None
+        assert info["error"] == "boom"
+
+
 # ── LifecycleManager ──────────────────────────────────────────────
 
 
