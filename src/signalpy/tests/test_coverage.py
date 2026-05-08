@@ -569,7 +569,7 @@ class TestStructuralScoping:
         from signalpy.providers.config import ConfigProvider
         from signalpy.providers.logging_provider import LoggingProvider
 
-        @component("scoped-log-test", depends=["config", "logging"])
+        @component("scoped-log-test")
         @requires(logger="ILogger")
         class ScopedLogTest:
             @lifecycle.activate
@@ -592,7 +592,7 @@ class TestStructuralScoping:
         from signalpy.providers.config import ConfigProvider
         from signalpy.providers.credentials import CredentialProvider
 
-        @component("scoped-cred-test", depends=["config", "credentials"])
+        @component("scoped-cred-test")
         @requires(creds="ICredentials")
         class ScopedCredTest:
             @lifecycle.activate
@@ -614,7 +614,7 @@ class TestStructuralScoping:
         from signalpy.providers.config import ConfigProvider
         from signalpy.providers.storage import StorageProvider
 
-        @component("scoped-stor-test", depends=["config", "storage"])
+        @component("scoped-stor-test")
         @requires(storage="IStorage")
         class ScopedStorTest:
             @lifecycle.activate
@@ -681,7 +681,7 @@ class TestUpdateInjection:
         class AggP1:
             pass
 
-        @component("agg-consumer-x", depends=["agg-provider-1"])
+        @component("agg-consumer-x")
         @requires(items=list["IAgg"])
         class AggConsumer:
             @lifecycle.activate
@@ -753,7 +753,7 @@ class TestReactiveEffect:
         class Provider:
             pass
 
-        @component("eff-consumer", depends=["eff-provider"])
+        @component("eff-consumer")
         @requires(svc="IEffSvc")
         class Consumer:
             @lifecycle.activate

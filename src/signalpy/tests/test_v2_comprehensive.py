@@ -63,7 +63,7 @@ class TestChangePropagation:
             @lifecycle.activate
             def activate(self): self.v = "old"
 
-        @component("reader", depends=["svc-old"])
+        @component("reader")
         @requires(svc="IVal")
         class Reader:
             @lifecycle.activate
@@ -99,7 +99,7 @@ class TestChangePropagation:
             @lifecycle.activate
             def activate(self): self.n = 10
 
-        @component("doubler", depends=["num-svc"])
+        @component("doubler")
         @requires(num="INum")
         class Doubler:
             @lifecycle.activate
@@ -274,11 +274,15 @@ class TestAggregateAndMap:
             def activate(self): self.words = {"bonjour"}
             def check_word(self, w): return w in self.words
 
-        @component("agg", depends=["i1", "i2"])
+        @component("agg")
         @requires(dicts=list[IDictionary])
         class Agg:
             @lifecycle.activate
             def activate(self):
+                self.count = 0
+
+            @effect
+            def update_count(self):
                 self.count = len(self.rt.dicts)
 
         kernel = Kernel()
@@ -299,11 +303,15 @@ class TestAggregateAndMap:
         @prop("_k", "lang", "FR")
         class M2: pass
 
-        @component("mapper", depends=["m1", "m2"])
+        @component("mapper")
         @requires(svcs="IMapSvc", key="lang")
         class Mapper:
             @lifecycle.activate
             def activate(self):
+                pass
+
+            @effect
+            def update_langs(self):
                 self.langs = list(self.rt.svcs.keys())
 
         kernel = Kernel()
@@ -396,7 +404,7 @@ class TestTypedContracts:
             def activate(self): self.words = {"test"}
             def check_word(self, w): return w in self.words
 
-        @component("typed-c", depends=["typed-p"])
+        @component("typed-c")
         @requires(d=IDictionary)
         class TypedC:
             @lifecycle.activate
@@ -437,7 +445,7 @@ class TestSpellCheckerE2E:
         class CP(BaseModel):
             text: str = ""; language: str = "EN"
 
-        @component("checker", depends=["en", "fr"])
+        @component("checker")
         @requires(dicts=list[IDictionary])
         class Checker:
             @lifecycle.activate
@@ -536,7 +544,7 @@ class TestComputedAndEffect:
             @lifecycle.activate
             def activate(self): self.v = 42
 
-        @component("comp-reader", depends=["comp-cache"])
+        @component("comp-reader")
         @requires(svc="ICC")
         class Reader:
             @lifecycle.activate
@@ -565,7 +573,7 @@ class TestComputedAndEffect:
             @lifecycle.activate
             def activate(self): self.v = "initial"
 
-        @component("eff-consumer", depends=["eff-svc"])
+        @component("eff-consumer")
         @requires(svc="IEff")
         class Consumer:
             @lifecycle.activate

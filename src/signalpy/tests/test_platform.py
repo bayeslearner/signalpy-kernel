@@ -27,7 +27,7 @@ class GreetParams(BaseModel):
     value: str = "default"
 
 
-@component("test-app", version="1.0", depends=["config", "logging"],
+@component("test-app", version="1.0",
            rest={"prefix": "/test", "version": "v1"},
            mcp={"name": "test-tools"})
 @provides("ITestApp")
@@ -294,7 +294,7 @@ class TestGatewayIntegration:
 
     @pytest.mark.asyncio
     async def test_internal_runnable_excluded_from_surface(self):
-        @component("surface-test", version="1.0", depends=["config", "logging"],
+        @component("surface-test", version="1.0",
                    rest={"prefix": "/stest"})
         @requires(config="IConfig", logger="ILogger")
         class SurfaceTestApp:

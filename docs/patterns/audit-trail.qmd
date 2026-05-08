@@ -52,7 +52,7 @@ The AuditTrail and NotificationService are just components. Add them, remove the
 The AccountService publishes a structured event after each transfer. This is the only audit-relevant line in the business component:
 
 ```python
-@component("accounts", version="1.0", depends=["config"])
+@component("accounts", version="1.0")
 @requires(config="IConfig")
 class AccountService:
 
@@ -82,7 +82,7 @@ class AccountService:
 The AuditTrail subscribes to `"account.*"`, which matches any event whose type starts with `account.` -- including `account.transfer`, `account.close`, or any future event type:
 
 ```python
-@component("audit-trail", version="1.0", depends=["config"])
+@component("audit-trail", version="1.0")
 @requires(config="IConfig")
 class AuditTrail:
 

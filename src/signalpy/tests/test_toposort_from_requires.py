@@ -1,21 +1,18 @@
-"""Toposort uses @requires contracts as well as explicit depends=.
+"""Toposort uses @requires contracts — the single source of truth.
 
-Before this change, `lifecycle_manager.resolve_all()` only used
-`meta.dependencies` (the @component(depends=[...]) list) for ordering.
-A component with `@requires(gateway=IToolGateway)` but no
-`depends=["tool-gateway"]` would activate alphabetically alongside its
-provider — triggering "no provider found" warnings and relying on the
-reactive registry listener to fix the wiring later.
+`lifecycle_manager.resolve_all()` walks `meta.requirements` and adds an
+edge from each provider to each consumer for every scalar non-aggregate
+non-optional contract. There is no separate ordering hook: if you need
+ordering you need a contract.
 
-Now the toposort also walks `meta.requirements`. Scalar non-aggregate
-non-optional requirements imply ordering. `@requires` is the single
-source of truth — `depends=` is an optional hint for cases where the
-contract isn't enough (e.g. ordering without a contract dependency).
+Aggregate (`list[X]`) and optional requirements deliberately do NOT
+add edges — both are reactive paths that boot empty / None and get
+filled in by the registry's change listener as providers come online.
 """
 import pytest
 
 from signalpy.kernel import (
-    Kernel, component, provides, requires, lifecycle, runnable,
+    Kernel, component, provides, requires, lifecycle,
 )
 
 
@@ -33,26 +30,19 @@ class ContractProvider:
 @component("contract-consumer", version="1.0")
 @requires(thing="IThing")
 class ContractConsumer:
-    """No depends= clause — yet activates AFTER ContractProvider via @requires."""
+    """Activates AFTER ContractProvider via @requires alone."""
     @lifecycle.activate
     def activate(self):
         # If toposort were broken, self.rt.thing wouldn't exist yet.
         assert self.rt.thing is not None
 
 
-# Aggregate consumer must NOT block on its providers (cycle-tolerant).
-@component("aggregate-host", version="1.0")
-@requires(plugins="IThing")  # treated as scalar — not aggregate
-class _AggregateHostScalar: ...
-
-
 # ── Tests ────────────────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_requires_drives_toposort_without_depends():
-    """A consumer with @requires(X) activates after the X provider, even
-    without an explicit depends= clause."""
+async def test_requires_drives_toposort():
+    """A consumer with @requires(X) activates after the X provider."""
     kernel = Kernel()
     kernel.discover([ContractConsumer, ContractProvider])  # reverse order
     await kernel.boot()
@@ -115,29 +105,4 @@ async def test_optional_requires_does_not_block_boot():
     await kernel.boot()
     boot = [b["name"] for b in kernel.boot_order()]
     assert "optional-consumer" in boot
-    await kernel.shutdown()
-
-
-@pytest.mark.asyncio
-async def test_depends_still_works_for_non_contract_ordering():
-    """`depends=[factory]` still pins boot order even when no @requires
-    references the dependency (e.g. lifecycle ordering, stub creation)."""
-    @component("seed")
-    class Seed:
-        @lifecycle.activate
-        def activate(self):
-            pass
-
-    @component("planted", depends=["seed"])
-    class Planted:
-        """Boots after Seed but doesn't @require any contract from it."""
-        @lifecycle.activate
-        def activate(self):
-            pass
-
-    kernel = Kernel()
-    kernel.discover([Planted, Seed])
-    await kernel.boot()
-    boot = [b["name"] for b in kernel.boot_order()]
-    assert boot.index("seed") < boot.index("planted")
     await kernel.shutdown()

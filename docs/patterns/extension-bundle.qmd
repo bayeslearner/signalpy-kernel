@@ -78,7 +78,7 @@ for cls in SLACK_BUNDLE:
 
 Each `hot_add()` call does the full lifecycle: register the factory, instantiate,
 resolve dependencies, build the reactive runtime, and activate. Order matters -- `SlackCommandHandler` declares
-`depends=["config", "slack-notifier"]`, so it must be added after `SlackNotifier`.
+`@requires(notifier=ISlackNotifier)`, so it must be added after `SlackNotifier` provides it.
 
 
 ### Step 3: @subscribe wires up automatically
@@ -87,7 +87,7 @@ resolve dependencies, build the reactive runtime, and activate. Order matters --
 The kernel registers this subscription during activation -- no manual wiring:
 
 ```python
-@component("slack-commands", version="1.0", depends=["config", "slack-notifier"])
+@component("slack-commands", version="1.0")
 @requires(config="IConfig", notifier="ISlackNotifier")
 class SlackCommandHandler:
 
@@ -166,7 +166,7 @@ Tests: `pytest src/signalpy/tests/test_examples.py::TestExtensionBundle -v`
 ## Production Considerations
 
 **Dependency ordering.** `SlackCommandHandler` declares
-`depends=["config", "slack-notifier"]`, so it must be added after `SlackNotifier`.
+`@requires(notifier=ISlackNotifier)`, so it must be added after `SlackNotifier`.
 In production, sort the bundle topologically before calling `hot_add()`. The
 kernel's own `_resolve_order()` does this at boot -- a bundle installer should
 reuse the same logic.
