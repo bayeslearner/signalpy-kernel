@@ -128,12 +128,11 @@ format:
       dark: darkly
     css:
       - custom.css
-      - present-mode.css
     code-copy: true
     code-overflow: wrap
     toc: true
     toc-depth: 3
     mermaid:
       theme: dark
-    include-after-body:
-      - present-mode.html
+    filters:
+      - present-mode

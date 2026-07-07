@@ -1,4 +1,3 @@
-<script>
 // present-mode.js — a distraction-free "present / teaching" toggle for docs sites.
 // Platform-agnostic: it only injects a button, listens for Shift+P / Esc, and flips
 // a `present-mode` class on <body>. The CSS (present-mode.css) does the rest and
@@ -45,4 +44,3 @@
   // …and re-run after each MkDocs Material instant-navigation swap.
   if (typeof document$ !== "undefined" && document$.subscribe) { document$.subscribe(setup); }
 })();
-</script>
