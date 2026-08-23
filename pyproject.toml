@@ -63,7 +63,8 @@ all = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/signalpy"]
+packages = ["src/signalpy", "src/signalpy2"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+pythonpath = ["src"]
