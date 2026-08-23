@@ -380,3 +380,50 @@ async def test_plugin_returns_pending_before_awaiting():
     fiber = root.plugin(provide(Greeter, "greeter", needs=["database"]))
     assert fiber.state is FiberState.PENDING, "the check did not run during plugin()"
     assert fiber.inertia is None, "a load was scheduled despite a missing dependency"
+
+
+async def test_the_typed_effects_example_runs():
+    """The README's multi-disposer example, annotated."""
+    from typing import Any, Callable, Protocol
+
+    from plugkit import plugin
+
+    class TypedServer:
+        def __init__(self) -> None:
+            self.routes: dict[str, Callable[[], str]] = {}
+
+        def add_route(self, path: str, handler: Callable[[], str]) -> None:
+            self.routes[path] = handler
+
+        def remove_route(self, path: str) -> None:
+            self.routes.pop(path, None)
+
+    class ServerDeps(Protocol):
+        server: TypedServer
+        def effect(self, execute: Any, label: str = ...) -> Any: ...
+
+    Handler = Callable[[], str]
+    Disposer = Callable[[], None]
+
+    @plugin
+    def admin_api(ctx: ServerDeps, config: Any = None) -> None:
+        def route(path: str, handler: Handler) -> Callable[[], Disposer]:
+            def install() -> Disposer:
+                ctx.server.add_route(path, handler)
+                return lambda: ctx.server.remove_route(path)
+            return install
+
+        ctx.effect(route("/admin", lambda: "admin"))
+        ctx.effect(route("/health", lambda: "ok"))
+
+    assert admin_api["inject"] == ["server"], admin_api["inject"]
+
+    root = Context()
+    await root.plugin(provide(TypedServer, "server"))
+    fiber = await root.plugin(admin_api)
+    await settle()
+    assert sorted(root.server.routes) == ["/admin", "/health"]
+
+    await fiber.dispose()
+    await settle()
+    assert root.server.routes == {}

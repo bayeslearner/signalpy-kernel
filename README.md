@@ -321,9 +321,14 @@ To reverse more than one change, use `ctx.effect`. It stores each disposer and
 starts them all on unload, in reverse registration order.
 
 ```python
-def admin_api(ctx, config=None):
-    def route(path, handler):
-        def install():
+Handler = Callable[[], str]
+Disposer = Callable[[], None]
+
+
+@plugin
+def admin_api(ctx: ServerDeps, config: Any = None) -> None:
+    def route(path: str, handler: Handler) -> Callable[[], Disposer]:
+        def install() -> Disposer:
             ctx.server.add_route(path, handler)
             return lambda: ctx.server.remove_route(path)
         return install
@@ -346,7 +351,7 @@ Three properties follow from total unload:
 A plugin function takes **exactly two parameters**.
 
 ```python
-def my_plugin(ctx, config=None):
+def my_plugin(ctx: MyDeps, config: Any = None) -> None:
     ...
 ```
 
@@ -412,7 +417,7 @@ on a function.
 from plugkit import plugin
 
 @plugin(inject=["server"])
-def admin_api(ctx, config=None):
+def admin_api(ctx: ServerDeps, config: Any = None) -> None:
     ...
 ```
 
@@ -427,7 +432,7 @@ with a normal constructor and no framework markup.
 ```python
 # services/greeter.py — imports nothing from plugkit
 class Greeter:
-    def __init__(self, database, prefix="hello"):
+    def __init__(self, database: Database, prefix: str = "hello") -> None:
         self.database = database
         self.prefix = prefix
 ```
