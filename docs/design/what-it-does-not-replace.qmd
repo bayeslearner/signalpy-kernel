@@ -82,9 +82,12 @@ iPOPO is a Python OSGi implementation. It exceeds plugkit in most dimensions.
 
 Its lifecycle model is the closest prior art in Python, which is why it is named
 in the README as the exception to "Python does not have this". plugkit's
-advantages over it are narrow: asyncio, the effect model, and semantic
-compatibility with a large TypeScript codebase whose documentation then applies
-here.
+advantages over it are narrow: asyncio, the effect model, scoped service views,
+and semantic compatibility with a large TypeScript codebase whose documentation
+then applies here.
+
+Those four are also the reason an agent runtime cannot simply be built on it.
+[Why not build on iPOPO](why-not-ipopo.qmd) tests each one.
 
 ## `pluggy` — a different job
 

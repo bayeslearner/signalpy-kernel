@@ -36,6 +36,8 @@ website:
             href: design/reactive-engine.qmd
           - text: "What it does not replace"
             href: design/what-it-does-not-replace.qmd
+          - text: "Why not build on iPOPO"
+            href: design/why-not-ipopo.qmd
           - text: "Pillars"
             href: steering/pillars.md
       - text: "GitHub"

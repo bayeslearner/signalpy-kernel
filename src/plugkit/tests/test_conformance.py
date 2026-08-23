@@ -10,6 +10,7 @@ import asyncio
 
 import pytest
 
+from plugkit import FiberState, provide
 from plugkit.cordis import Context, Service
 
 
@@ -191,3 +192,52 @@ async def test_disposal_ordering_sync_versus_async():
     assert order[:2] == ["sync2", "sync1"], "sync disposers are not exact reverse"
     assert order[2:] == ["async4", "async3"], "async completion is not by duration"
     assert order != ["async4", "async3", "sync2", "sync1"], "this would be strict LIFO"
+
+
+# ── the three properties an agent runtime needs ─────────────────────────
+#
+# Each is something iPOPO, the closest prior art in Python, cannot do. They are
+# asserted here because docs/design/why-not-ipopo.qmd rests on them.
+
+
+async def test_a_plugin_body_may_be_async():
+    """iPOPO calls an `async def @Validate` without awaiting it: the component
+    ends INVALID with a RuntimeWarning."""
+    log = []
+
+    async def slow(ctx, config=None):
+        await asyncio.sleep(0.01)
+        log.append("done")
+
+    root = Context()
+    fiber = await root.plugin(slow)
+    assert fiber.state is FiberState.ACTIVE
+    assert log == ["done"]
+
+
+async def test_isolated_scopes_give_subtrees_their_own_binding():
+    """iPOPO's registry is framework-global; BundleContext has no child view."""
+
+    class Tools:
+        def __init__(self, label):
+            self.label = label
+
+    root = Context()
+    agent_a = root.isolate("tools")
+    agent_b = root.isolate("tools")
+
+    await agent_a.plugin(provide(Tools, "tools", extra={"label": "a"}))
+    await agent_b.plugin(provide(Tools, "tools", extra={"label": "b"}))
+    await settle()
+
+    assert agent_a.tools.label == "a"
+    assert agent_b.tools.label == "b"
+
+
+async def test_a_waterfall_listener_can_wrap_and_veto():
+    """iPOPO listeners are notification only; none can wrap or change an outcome."""
+    root = Context()
+    root.on("gate", lambda payload, next_: "denied" if payload == "bad" else next_())
+
+    assert root.waterfall("gate", "good", lambda: "allowed") == "allowed"
+    assert root.waterfall("gate", "bad", lambda: "allowed") == "denied"

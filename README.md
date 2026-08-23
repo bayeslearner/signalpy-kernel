@@ -214,6 +214,14 @@ thing: who owns a component's side effects.
 feature-by-feature version, including the eight signalpy providers and all three
 of its transport adapters that have no replacement here.
 
+`iPOPO` deserves a longer answer, since it is the closest prior art and a fair
+reader will ask why not just use it.
+[Why not build on iPOPO](docs/design/why-not-ipopo.qmd) tests four things: an
+`async def` lifecycle callback is never awaited and leaves the component INVALID;
+`@Invalidate` does not undo a component's side effects either; the registry is
+framework-global with no scoped views; and its listeners cannot wrap or veto one
+another.
+
 ## Four terms
 
 | Term | Definition |
