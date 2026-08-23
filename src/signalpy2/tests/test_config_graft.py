@@ -5,8 +5,8 @@ import asyncio
 import pytest
 
 from signalpy2 import Context
-from signalpy2.config import ConfigService
-from signalpy2.reactive import ReactiveService
+from signalpy2.services.config import ConfigService
+from signalpy2.services.reactive import ReactiveService
 
 
 async def settle(n=10):

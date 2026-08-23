@@ -3,7 +3,7 @@
 import asyncio
 
 from signalpy2 import Context, FiberState
-from signalpy2.supervision import SupervisorService, compute_delay
+from signalpy2.services.supervision import SupervisorService, compute_delay
 
 
 async def settle(n=30):

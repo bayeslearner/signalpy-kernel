@@ -8,7 +8,7 @@ the plugin unloads — without the plugin writing any teardown.
 import asyncio
 
 from signalpy2 import Context, Service
-from signalpy2.reactive import ReactiveService, Signal
+from signalpy2.services.reactive import ReactiveService, Signal
 
 
 async def settle(n=10):

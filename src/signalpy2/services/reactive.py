@@ -27,8 +27,8 @@ from __future__ import annotations
 
 from typing import Any, Callable, TypeVar
 
-from ._reactive_engine import Computed, Effect, Signal, batch, is_stale
-from .cordis import Service
+from ..signals import Computed, Effect, Signal, batch, is_stale
+from ..cordis import Service
 
 T = TypeVar("T")
 

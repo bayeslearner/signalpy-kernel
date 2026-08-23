@@ -29,8 +29,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from ._reactive_engine import Signal
-from .cordis import Service
+from ..signals import Signal
+from ..cordis import Service
 
 log = logging.getLogger(__name__)
 

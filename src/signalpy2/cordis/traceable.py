@@ -150,12 +150,18 @@ class Traceable:
         # which silently turns the attribute into a function that calls the
         # object with the view as its first argument.
         #
-        # getattr_static bypasses the descriptor protocol: for a method it
-        # yields the plain function off the class, and for instance data it
-        # yields the stored object. Only the former is a method to rebind.
-        # staticmethod/classmethod land here as their wrapper objects, not as
-        # functions, and are correctly left alone — they take no `self`.
-        raw = inspect.getattr_static(value, name, None)
+        # The discriminator is *where the attribute lives*, not whether it is
+        # callable. A method comes from the class. Anything in the instance
+        # __dict__ is data the component put there — including a lambda or a
+        # bound callback, which `inspect.isfunction` cannot tell from a method.
+        if name in getattr(value, "__dict__", ()):
+            return inner
+
+        # From the class, then. Only a plain function is a method to rebind;
+        # staticmethod/classmethod arrive as their wrapper objects and are
+        # correctly left alone, since they take no `self`. Slot descriptors on
+        # a __slots__ class are not functions either, so they pass through.
+        raw = inspect.getattr_static(type(value), name, None)
         if not inspect.isfunction(raw):
             return inner
 

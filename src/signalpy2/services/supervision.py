@@ -34,7 +34,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from .cordis import FiberState, Service
+from ..cordis import FiberState, Service
 
 log = logging.getLogger(__name__)
 

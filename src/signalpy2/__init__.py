@@ -52,9 +52,26 @@ from .cordis import (  # noqa: F401
 )
 from .cordis.events import AggregateError, EventsService, is_bailed  # noqa: F401
 from .cordis.utils import this_  # noqa: F401
-from .config import ConfigService  # noqa: F401
-from .reactive import Computed, Effect, ReactiveService, Signal, batch  # noqa: F401
-from .supervision import Policy, SupervisorService  # noqa: F401
+from .binding import bind, provide, snake_case  # noqa: F401
+from .signals import Computed, Effect, Signal, batch, is_stale  # noqa: F401
+
+# The shipped services. They have no privileged status — each is an ordinary
+# plugin you mount or don't, re-exported here only for convenience.
+from .services.config import ConfigService  # noqa: F401
+from .services.reactive import ReactiveService  # noqa: F401
+from .services.supervision import Policy, SupervisorService  # noqa: F401
+from .services.tools import (  # noqa: F401
+    Accept,
+    Allow,
+    Ask,
+    Block,
+    Deny,
+    Tool,
+    ToolExecution,
+    ToolResult,
+    ToolsService,
+    timeout_policy,
+)
 
 __all__ = [
     # kernel
@@ -72,15 +89,31 @@ __all__ = [
     "Logger",
     # composition
     "Loader",
-    # grafts — plugins, mount the ones you want
-    "ReactiveService",
+    # bindings — plain classes become services without importing the kernel
+    "provide",
+    "bind",
+    "snake_case",
+    # signals — a standalone library, no kernel involved
     "Signal",
     "Computed",
     "Effect",
     "batch",
+    "is_stale",
+    # shipped services — ordinary plugins, mount what you need
+    "ReactiveService",
     "SupervisorService",
     "Policy",
     "ConfigService",
+    "ToolsService",
+    "Tool",
+    "ToolExecution",
+    "ToolResult",
+    "Allow",
+    "Deny",
+    "Ask",
+    "Accept",
+    "Block",
+    "timeout_policy",
     # dispatch
     "this_",
     "is_bailed",
