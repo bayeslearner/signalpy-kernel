@@ -750,7 +750,7 @@ maintained here as a fork rather than consumed as a dependency.
 Run the test suite:
 
 ```bash
-uv run pytest src/plugkit/tests -q                              # 249 passed
+uv run pytest src/plugkit/tests -q                              # 294 passed
 uv run --with pyright pytest src/plugkit/tests/test_typing.py   # typing checks
 ```
 

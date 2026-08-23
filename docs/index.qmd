@@ -45,6 +45,10 @@ root.greeter.hello("world")          # "hello world"
 | [Your first plugin](guide/01-first-plugin.qmd) | inject, effects, and watching unload be total |
 | [Plain components](guide/02-popo-components.qmd) | `provide()`, and a `ctx` your type checker understands |
 | [Tools and permission](guide/03-tools.qmd) | the five-stage pipeline, and why a guard has no allow |
+| [Writing your own service](guide/04-your-own-service.qmd) | registries others add to, and the rebinding rule |
+| [Config and reactivity](guide/05-config-and-reactivity.qmd) | values that change while the program runs |
+| [Composition from a file](guide/06-composition-from-a-file.qmd) | an application as a YAML list |
+| [Testing](guide/07-testing.qmd) | what plain components buy you |
 
 ## Before you adopt it
 

@@ -1,0 +1,122 @@
+---
+title: "Writing your own service"
+subtitle: "When a plain class is not enough"
+---
+
+[Chapter 2](02-popo-components.qmd) covered `provide()`, which registers a plain
+class. That is the right tool for most components. This chapter covers the case
+it does not fit: a service that other plugins **register into**.
+
+## Two kinds of service
+
+| Kind | Example | Use |
+|---|---|---|
+| A component others **call** | a database, an HTTP client, a greeter | `provide()` — a plain class |
+| A registry others **add to** | a tool registry, a route table, a middleware chain | `Service` subclass |
+
+The difference is direction. `ctx.database.query(...)` calls into the database.
+`ctx.tools.register(tool)` puts something *into* the tools service, and that
+something must disappear when the plugin that registered it unloads.
+
+## The rebinding rule
+
+A `Service` subclass gets one property a plain class does not: when another
+plugin reads it, `self.ctx` inside its methods is **that plugin's context**, not
+the service's own.
+
+```python
+from plugkit import Service
+
+
+class Routes(Service):
+    provide = "routes"
+
+    def __init__(self, ctx, config=None):
+        super().__init__(ctx)
+        self._table: dict[str, object] = {}
+
+    def add(self, path: str, handler: object):
+        table = self._table
+
+        def install():
+            table[path] = handler
+            return lambda: table.pop(path, None)
+
+        # `self.ctx` here belongs to whoever called `add`
+        return self.ctx.effect(install, f"routes.add({path!r})")
+```
+
+Now a caller registers a route and never writes teardown:
+
+```python
+@plugin
+def admin(ctx: RouteDeps, config=None) -> None:
+    ctx.routes.add("/admin", admin_page)
+```
+
+Unload `admin` and `/admin` disappears from the table, even though the table
+belongs to `Routes`. Without rebinding, `Routes` would have to track which plugin
+added which route and clean up itself, which every registry would get subtly
+wrong in its own way.
+
+`ctx.tools.register`, `ctx.tools.guard` and `ctx.reactive.effect` all work this
+way.
+
+## The rule this creates
+
+**Return an effect from any method that registers something.** A method that
+mutates the service's own state on behalf of a caller and returns nothing has
+created something nobody owns — the bug [chapter 0](00-why.qmd) opens with,
+reintroduced one level down.
+
+```python
+def add(self, path, handler):
+    self._table[path] = handler          # nobody owns this
+```
+
+## A hazard worth knowing
+
+The rebinding walks attribute access, so it distinguishes a *method* from *data
+that happens to be callable*. Storing a callback on the instance is fine:
+
+```python
+class Approvals(Service):
+    provide = "approvals"
+
+    def __init__(self, ctx, config=None):
+        super().__init__(ctx)
+        self._answer = None        # a callable held as data — not rebound
+```
+
+This was got wrong twice in this kernel's history. The discriminator is whether
+the name lives in the instance `__dict__`. You do not have to do anything; it is
+noted because the symptom, if it regresses, is a stored callback being invoked
+with an extra first argument.
+
+## Mounting it
+
+A `Service` subclass is a plugin. Mount it like any other:
+
+```python
+await root.plugin(Routes)
+```
+
+`provide = "routes"` is the class attribute that names it. Declare dependencies
+with `inject` on the class:
+
+```python
+class Routes(Service):
+    provide = "routes"
+    inject = ["logger"]
+```
+
+## When not to do this
+
+If nothing registers *into* your component, use `provide()`. A `Service`
+subclass imports the kernel, which is the cost [chapter 2](02-popo-components.qmd)
+exists to avoid. Pay it only for a registry.
+
+## Next
+
+[Config and reactivity](05-config-and-reactivity.qmd) — values that change while
+the program runs.

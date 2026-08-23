@@ -235,5 +235,8 @@ directly.
 
 ## Next
 
+[Writing your own service](04-your-own-service.qmd) — how `ctx.tools` itself is
+built, and how to build a registry like it.
+
 - [`docs/design/kernel-architecture.md`](https://github.com/bayeslearner/plugkit/blob/main/docs/design/kernel-architecture.md) — the architecture anchor
 - `src/plugkit/tests/test_tools.py` — one test per stage, plus the properties above

@@ -229,13 +229,19 @@ If your plugin function raises, awaiting the mount re-raises it. To observe a
 failure rather than propagate it, don't await — check the state:
 
 ```python
-fiber = root.plugin(might_fail)     # no await
-await asyncio.sleep(0)              # let the load run
+fiber = root.plugin(might_fail)
+try:
+    await fiber
+except RuntimeError:
+    pass
 assert fiber.state is FiberState.FAILED
 ```
 
-`await fiber` is not an option here, since that re-raises too. `asyncio.sleep(0)`
-yields to the event loop so the load can run, without awaiting the result.
+Awaiting waits for the load transition and then re-raises, so catching the
+exception leaves you with a settled fiber. Do not substitute
+`await asyncio.sleep(0)` — a failed load takes three ticks to reach `FAILED`,
+going through `UNLOADING` on the way, and a test that counts ticks breaks when
+that changes.
 
 That is also how [supervision](03-tools.qmd) sees failures.
 :::
