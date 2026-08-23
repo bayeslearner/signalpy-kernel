@@ -16,7 +16,7 @@ bootstrap problem, not a design choice. It lives in `cordis/` — 4,298 lines.
 construction strategy, scopes, lifetimes-per-object, config binding, the wiring
 declaration format. All of that is policy, and policy is a plugin.
 
-`binding.provide()` is one such policy — 346 lines, and it touches the kernel
+`binding.provide()` is one such policy — 378 lines, and it touches the kernel
 through exactly three methods: `ctx.provide`, `ctx.inject`, `ctx.effect`. Anything
 that can call those three can be a rival policy, mounted alongside, with no
 kernel change.

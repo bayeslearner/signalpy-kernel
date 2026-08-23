@@ -284,7 +284,7 @@ string is one.
 
 There is a second reason here specifically: Cordis is string-keyed, and matching
 it is what keeps dsh's documentation valid for this kernel. A type-based layer
-could be built on top — `provide()` is only 346 lines, and
+could be built on top — `provide()` is only 378 lines, and
 [a rival policy](#where-the-kernelplugin-line-falls) is an ordinary plugin — but
 it would be a second lookup mechanism, and two ways to find a service is worse
 than one imperfect way.
@@ -314,7 +314,7 @@ plugins.
 strategy, scopes, per-object lifetimes, config binding, the wiring format. All
 policy, and policy is a plugin.
 
-`provide()` is one such policy: 346 lines, touching the kernel through exactly
+`provide()` is one such policy: 378 lines, touching the kernel through exactly
 three methods — `ctx.provide`, `ctx.inject`, `ctx.effect`. Anything that can call
 those three can be a rival. `plugkit/examples/alternative_binding.py` is one:
 `provide_factory()` registers a *maker* instead of an instance, so every caller

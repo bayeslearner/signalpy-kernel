@@ -567,17 +567,45 @@ itself.
 
 ### What is vendored and what is not
 
-9,884 lines vendored, 3,509 written here.
+14,108 lines in `src/plugkit`, by origin:
+
+| | lines | share |
+|---|---|---|
+| **Vendored** — the Cordis port and its test suite | 9,929 | 70% |
+| **Carried forward** — `signals.py`, from `signalpy-kernel` | 597 | 4% |
+| **Written here** | 3,582 | 25% |
+
+The vendored kernel is 4,343 lines of source and 5,586 of tests, ported by
+[geohotstan](https://github.com/geohotstan/cordis-py) under MIT. **77 of those
+source lines are ours** — the carrier fix, two bugs in the traceable layer, and
+subscript access. 49 lines of the upstream tests were changed, all of them the
+mechanical listener-signature update. Every change is listed in
+`src/plugkit/VENDORED.md`.
+
+The 3,582 lines written here break down as:
+
+| | lines |
+|---|---|
+| tests, including the conformance suite | 1,951 |
+| `services/tools.py` — our code, DeepSeek's design, ported stage for stage | 419 |
+| `binding.py` — `provide()` and `@plugin` | 378 |
+| `services/config.py` | 248 |
+| `services/supervision.py` — strategies from `signalpy-kernel` | 177 |
+| `__init__.py` | 133 |
+| `examples/` | 189 |
+| `services/reactive.py` | 87 |
+
+Over half is tests, and the largest implementation file re-implements a design
+from elsewhere. The original design work is `binding.py`: 378 lines that keep
+components free of framework imports.
+
+What this project contributes beyond code:
 
 | | |
 |---|---|
-| **Vendored** | The kernel. A Cordis port by [geohotstan](https://github.com/geohotstan/cordis-py), MIT. 4,298 lines of source and 5,586 of tests. |
 | **Finding** | Three MIT Python ports of Cordis exist. Two do not work. In one, `ctx.effect()` raises `'Symbol' object is not callable`, and its 59 tests never call it. Another replaced the string-keyed API with typed tokens. |
 | **Conformance suite** | `test_conformance.py`. Nine assertions traced to `vendor/cordis/src/*.ts`. It scored the three ports 6/9, 5/9 and not applicable, and gates every upstream change. |
-| **Fix** | The vendored port passed the dispatch carrier as a leading positional argument to every listener. Cordis binds it as `this`. The difference changes every listener's arity, so plugins written from DeepSeek's documentation fail. Now ambient, via a `ContextVar`. |
-| **Original** | `binding.py`, 346 lines. Keeps components free of framework imports. |
-| **Ported design** | `services/tools.py`. Our implementation of DeepSeek's pipeline. |
-| **Carried forward** | `signals.py` and the supervision strategies, from `signalpy-kernel`. |
+| **Fix** | The vendored port passed the dispatch carrier as a leading positional argument to every listener. Cordis binds it as `this`. The difference changes every listener's arity, so plugins written from DeepSeek's documentation fail. |
 
 The vendored port is pre-1.0, unpublished on PyPI, and has one author. It is
 maintained here as a fork rather than consumed as a dependency.
