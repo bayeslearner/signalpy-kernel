@@ -327,3 +327,25 @@ async def test_describe_changes_nothing():
 def test_the_diagnostics_point_name_is_exported():
     """A plugin contributes to this point without importing `describe`."""
     assert DIAGNOSTICS == "diagnostics"
+
+
+async def test_a_diagnostic_returning_a_non_serialisable_object_keeps_r2():
+    """R2 is a promise to every reader of a snapshot. One plugin returning a
+    socket, a datetime or a set must not break it for everyone."""
+    root = Context()
+    await root.plugin(PointsService)
+
+    class Connection:
+        def __repr__(self):
+            return "<Connection open>"
+
+    def odd(ctx, config=None):
+        ctx.points.add(DIAGNOSTICS, lambda: {"conn": Connection()}, key="odd")
+
+    odd.inject = ["points"]
+    await root.plugin(odd)
+    await settle()
+
+    snapshot = describe(root)
+    json.dumps(snapshot)                       # the promise R2 makes
+    assert "<Connection open>" in str(snapshot["diagnostics"]["odd"])

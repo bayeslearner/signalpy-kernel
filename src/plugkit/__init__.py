@@ -129,7 +129,7 @@ __all__ = [
     "AggregateError",
 ]
 
-# Internal machinery. Importable from its module when you genuinely need it —
+# Internal machinery. Importable from its module when you need it —
 # `plugkit.cordis.EventsService` and so on — but not part of the surface a user
 # is expected to touch, so not re-exported here:
 #   EventsService  RegistryService  ReflectService  LoggerService  Logger

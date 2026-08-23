@@ -99,7 +99,7 @@ class ConfigService(Service):
         self._loaded: dict = {}
         self._overrides: dict = {}
         self._data: Signal[dict] = Signal({})
-        # One Signal per dotted key that anyone has actually read, so a change
+        # One Signal per dotted key that some reader has read, so a change
         # wakes only the readers of *that* key. A single Signal over the whole
         # dict would wake every config reader on every write, which is the
         # behaviour this service exists to avoid.

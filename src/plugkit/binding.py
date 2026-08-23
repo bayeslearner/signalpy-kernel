@@ -252,7 +252,7 @@ def provide(
     - Renaming the class silently broke the wiring. `Database` → `PostgresDatabase`
       changes the service name to `postgres_database`, so every dependent stops
       activating, with no error, because a plugin waiting on a service that never
-      arrives is indistinguishable from one that is simply not needed yet.
+      arrives is indistinguishable from one that is not needed yet.
 
     Naming it yourself also pushes you toward the *role* rather than the
     implementation, which is what makes swapping implementations possible:

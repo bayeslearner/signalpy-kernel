@@ -165,7 +165,7 @@ missing = [name for name in fiber.inject if name not in reachable]
 
 where `reachable` is read from `ctx.reflect.store`. A `PENDING` fiber is the
 kernel behaving correctly — a plugin whose dependency is absent should wait — but
-it is indistinguishable from a plugin that is simply not needed, and that
+it is indistinguishable from a plugin that is not needed, and that
 ambiguity is documented in the guide as intended behaviour. Naming the missing
 service converts a silent wait into a readable one without changing it.
 

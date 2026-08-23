@@ -276,7 +276,7 @@ class Computed(_Consumer, Generic[T]):
                 old = self._value
                 self._value = self._fn()
                 self._dirty = False
-                # Only propagate if value actually changed (identity)
+                # Only propagate on a changed value (identity)
                 if self._value is not old:
                     self._version += 1
                     self._propagate()
@@ -307,7 +307,7 @@ class Computed(_Consumer, Generic[T]):
         We must propagate even though we haven't recomputed yet, because
         downstream Effects need to know they should re-run. When they do
         re-run and read this Computed, _recompute will check if the value
-        actually changed and skip further propagation if not.
+        changed, and skip further propagation if not.
 
         Thread-safe: dirty-toggle and subscriber snapshot are under the
         reentrant lock; the dedup ("only propagate if not already dirty")

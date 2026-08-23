@@ -35,7 +35,7 @@ carry `name` and `inject`:
         ctx.provide("greeter", lambda who: f"{prefix} {who}")
 
 Entry order in the file carries no meaning. `inject` decides activation, so a
-plugin listed first that needs one listed last simply waits.
+plugin listed first that needs one listed last waits.
 """
 
 from __future__ import annotations

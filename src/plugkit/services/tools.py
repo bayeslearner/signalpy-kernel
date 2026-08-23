@@ -1,7 +1,7 @@
 """`ctx.tools` — a tool registry with the five-stage execution pipeline.
 
 This is the piece the waterfall fix in the kernel was for. dsh calls it the
-widest and most useful extension surface it has, and the shape is worth copying
+widest and most useful extension surface it has, and the shape carries over
 exactly, because it is the difference between "I can add a tool" and "I can add
 a rule about everyone's tools without touching any of them".
 
@@ -197,8 +197,8 @@ class ToolsService(Service):
     GUARDS = "tools.guards"
     APPROVERS = "tools.approvers"
 
-    def __init__(self, ctx, config=None):
-        super().__init__(ctx)
+    # No __init__: there is no private state left to build. Tools, guards and
+    # approvers all live in extension points.
 
     # ── registration ──────────────────────────────────────────────────
 

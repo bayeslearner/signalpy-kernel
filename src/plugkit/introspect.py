@@ -25,6 +25,7 @@ so keeping one does not keep the system alive.
 
 from __future__ import annotations
 
+import json
 import time
 from typing import Any
 
@@ -82,12 +83,27 @@ def _reachable_services(ctx: Any) -> dict[str, int]:
     return services
 
 
+def _serialisable(value: Any) -> Any:
+    """`value` if it survives `json.dumps`, its `repr` otherwise.
+
+    A diagnostic is arbitrary plugin code and may return anything — a connection
+    object, a datetime, a set. Letting that through would break the snapshot's
+    one structural promise for everyone, on one plugin's mistake. Same principle
+    as catching the exception below: a broken diagnostic degrades to a string
+    instead of breaking the tool you reached for because something was already
+    wrong.
+    """
+    try:
+        json.dumps(value)
+        return value
+    except (TypeError, ValueError):
+        return repr(value)
+
+
 def _collect_diagnostics(ctx: Any) -> dict[str, Any]:
     """Call every contribution to the `diagnostics` point.
 
-    A contribution that raises is reported rather than propagated: a broken
-    diagnostic must not break the tool you reached for because something was
-    already broken.
+    A contribution that raises is reported rather than propagated.
     """
     points = getattr(ctx, "points", None)
     if points is None:
@@ -104,7 +120,7 @@ def _collect_diagnostics(ctx: Any) -> dict[str, Any]:
             value = entry.value() if callable(entry.value) else entry.value
         except Exception as exc:
             value = {"error": f"{type(exc).__name__}: {exc}"}
-        out[key] = value
+        out[str(key)] = _serialisable(value)
     return out
 
 
