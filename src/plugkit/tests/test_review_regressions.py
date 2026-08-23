@@ -204,3 +204,144 @@ async def test_config_override_wakes_readers_both_ways():
     with root.config.override({"http": {"timeout": 1}}):
         pass
     assert seen == [30, 1, 30]
+
+
+# ── Q1 HIGH — a runtime set() must outrank loaded files ──────────────────
+
+
+async def test_a_runtime_set_survives_a_later_load(tmp_path):
+    """`set()` wrote to _plain; every load_* merged the whole di state over it.
+
+    Loading a second file that does not even mention the key reverted it to the
+    value from the first file.
+    """
+    first = tmp_path / "a.yml"
+    first.write_text("http:\n  timeout: 30\n")
+    second = tmp_path / "b.yml"
+    second.write_text("http:\n  host: example\n")
+
+    root = Context()
+    await root.plugin(ConfigService, {"yaml": str(first)})
+    await settle()
+    assert root.config.get("http.timeout") == 30
+
+    root.config.set("http.timeout", 99)
+    root.config.load_yaml(str(second))
+
+    assert root.config.get("http.timeout") == 99, "the runtime value was reverted"
+    assert root.config.get("http.host") == "example", "the new file did not load"
+
+
+async def test_layers_compose_in_order(tmp_path):
+    """Later files beat earlier ones; a runtime set beats every file."""
+    first = tmp_path / "a.yml"
+    first.write_text("k: from_a\n")
+    second = tmp_path / "b.yml"
+    second.write_text("k: from_b\n")
+
+    root = Context()
+    await root.plugin(ConfigService, {"yaml": [str(first), str(second)]})
+    await settle()
+    assert root.config.get("k") == "from_b"
+
+    root.config.set("k", "runtime")
+    assert root.config.get("k") == "runtime"
+
+    root.config.load_yaml(str(first))
+    assert root.config.get("k") == "runtime", "a reload outranked the runtime value"
+
+
+# ── Q1 HIGH — save/restore assumed disposal order matched registration ───
+
+
+async def test_approver_survives_an_out_of_order_dispose():
+    """`set_approver` saved the previous value and restored it on dispose.
+
+    That is only correct if plugins unload in reverse mount order. Disposing the
+    older registration first restored *its* saved value — None — wiping the newer
+    approver. Every subsequent `Ask` then fails closed, which is a silent
+    permission regression rather than a visible error.
+    """
+    root = Context()
+    await root.plugin(ToolsService)
+
+    def first(ctx, config=None):
+        ctx.tools.set_approver(lambda execution, reason: "one")
+
+    def second(ctx, config=None):
+        ctx.tools.set_approver(lambda execution, reason: "two")
+
+    first.inject = second.inject = ["tools"]
+    older = await root.plugin(first)
+    await root.plugin(second)
+    await settle()
+
+    await older.dispose()
+    await settle()
+
+    approver = root.tools._approver
+    assert approver is not None, "disposing the older registration removed the newer one"
+    assert approver(None, None) == "two"
+
+
+async def test_disposing_the_newest_approver_falls_back():
+    root = Context()
+    await root.plugin(ToolsService)
+
+    def first(ctx, config=None):
+        ctx.tools.set_approver(lambda execution, reason: "one")
+
+    def second(ctx, config=None):
+        ctx.tools.set_approver(lambda execution, reason: "two")
+
+    first.inject = second.inject = ["tools"]
+    await root.plugin(first)
+    newer = await root.plugin(second)
+    await settle()
+
+    await newer.dispose()
+    await settle()
+    assert root.tools._approver(None, None) == "one"
+
+
+# ── Q1 MEDIUM — a tool name must be a usable string ─────────────────────
+
+
+async def test_a_non_string_tool_name_is_rejected():
+    """A tool registered under 42 can never be called, and breaks names()."""
+
+    class Bad:
+        name = 42
+        description = "unreachable"
+
+        def execute(self, arguments, execution=None):
+            return 1
+
+    root = Context()
+    await root.plugin(ToolsService)
+
+    def register(ctx, config=None):
+        ctx.tools.register(Bad())
+
+    register.inject = ["tools"]
+    with pytest.raises(Exception, match="name"):
+        await root.plugin(register)
+
+
+async def test_an_empty_tool_name_is_rejected():
+    class Bad:
+        name = ""
+        description = "unreachable"
+
+        def execute(self, arguments, execution=None):
+            return 1
+
+    root = Context()
+    await root.plugin(ToolsService)
+
+    def register(ctx, config=None):
+        ctx.tools.register(Bad())
+
+    register.inject = ["tools"]
+    with pytest.raises(Exception, match="name"):
+        await root.plugin(register)

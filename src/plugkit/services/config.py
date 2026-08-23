@@ -87,7 +87,17 @@ class ConfigService(Service):
         super().__init__(ctx)
         options = config or {}
         self._di = _di_providers.Configuration() if _di_providers else None
-        self._plain: dict = {}
+        # Two layers, merged on every republish. `_loaded` is everything read
+        # from files, env vars and pydantic settings; `_overrides` is everything
+        # set at runtime. Overrides win.
+        #
+        # One flat dict does not work. `set()` would write into it, and the next
+        # `load_*` would merge the loader's whole accumulated state back over the
+        # top — reverting a runtime value to whatever a file said, even a file
+        # that never mentions the key. See
+        # `test_a_runtime_set_survives_a_later_load`.
+        self._loaded: dict = {}
+        self._overrides: dict = {}
         self._data: Signal[dict] = Signal({})
         # One Signal per dotted key that anyone has actually read, so a change
         # wakes only the readers of *that* key. A single Signal over the whole
@@ -121,6 +131,11 @@ class ConfigService(Service):
             raise KeyError(f"required config key {key!r} is not set")
         return value
 
+    @property
+    def _plain(self) -> dict:
+        """The two layers merged. Runtime overrides beat loaded files."""
+        return _merge(self._loaded, self._overrides)
+
     def peek(self, key: str, default: Any = None) -> Any:
         """Read without registering a reactive dependency."""
         return _dig(self._plain, key, default)
@@ -144,8 +159,12 @@ class ConfigService(Service):
     # ── writing ───────────────────────────────────────────────────────
 
     def set(self, key: str, value: Any) -> None:
-        """Set a dotted key and wake every reactive reader of it."""
-        self._plain = _bury(self._plain, key, value)
+        """Set a dotted key and wake every reactive reader of it.
+
+        Writes to the override layer, so a later `load_yaml` or `load_env` does
+        not revert it.
+        """
+        self._overrides = _bury(self._overrides, key, value)
         self._republish()
 
     # ── loading ───────────────────────────────────────────────────────
@@ -153,13 +172,13 @@ class ConfigService(Service):
     def load_dict(self, data: dict) -> None:
         if self._di is not None:
             self._di.from_dict(data)
-        self._plain = _merge(self._plain, data)
+        self._loaded = _merge(self._loaded, data)
         self._republish()
 
     def load_yaml(self, path: str, *, required: bool = False) -> None:
         if self._di is not None:
             self._di.from_yaml(path, required=required)
-            self._plain = _merge(self._plain, self._di() or {})
+            self._loaded = _merge(self._loaded, self._di() or {})
         else:
             import os
 
@@ -171,7 +190,7 @@ class ConfigService(Service):
             import yaml
 
             with open(path, encoding="utf-8") as handle:
-                self._plain = _merge(self._plain, yaml.safe_load(handle) or {})
+                self._loaded = _merge(self._loaded, yaml.safe_load(handle) or {})
         self._republish()
 
     def load_env(self, key: str, env_var: str, default: Any = None) -> None:
@@ -181,14 +200,14 @@ class ConfigService(Service):
         for part in key.split("."):
             node = getattr(node, part)
         node.from_env(env_var, default)
-        self._plain = _merge(self._plain, self._di() or {})
+        self._loaded = _merge(self._loaded, self._di() or {})
         self._republish()
 
     def load_pydantic(self, settings: Any) -> None:
         """Populate from a pydantic-settings instance. Needs dependency-injector."""
         self._require_di("load_pydantic")
         self._di.from_pydantic(settings)
-        self._plain = _merge(self._plain, self._di() or {})
+        self._loaded = _merge(self._loaded, self._di() or {})
         self._republish()
 
     def override(self, data: dict):
@@ -201,13 +220,13 @@ class ConfigService(Service):
 
         class _Override:
             def __enter__(self_inner):
-                self_inner._saved = service._plain
-                service._plain = _merge(service._plain, data)
+                self_inner._saved = service._overrides
+                service._overrides = _merge(service._overrides, data)
                 service._republish()
                 return service
 
             def __exit__(self_inner, *exc):
-                service._plain = self_inner._saved
+                service._overrides = self_inner._saved
                 service._republish()
                 return False
 

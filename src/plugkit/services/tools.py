@@ -194,7 +194,11 @@ class ToolsService(Service):
         super().__init__(ctx)
         self._tools: dict[str, Any] = {}
         self._guards: list[Callable[[ToolExecution], str | None]] = []
-        self._approver: Callable[[ToolExecution, str | None], Any] | None = None
+        # A stack, not a single slot with save/restore. Restoring a saved value
+        # is only correct if plugins unload in reverse mount order; disposing an
+        # older registration first would otherwise restore *its* saved value and
+        # wipe a newer approver. Removing by identity has no such assumption.
+        self._approvers: list[Callable[[ToolExecution, str | None], Any]] = []
 
     # ── registration ──────────────────────────────────────────────────
 
@@ -208,8 +212,18 @@ class ToolsService(Service):
             if not hasattr(tool, attribute):
                 raise TypeError(f"a tool needs a {attribute!r} attribute, {tool!r} has none")
 
-        registry = self._tools
         name = tool.name
+        # Callers look tools up by string. A non-string name registers without
+        # complaint and can never be reached, and breaks `names()`, which sorts
+        # the keys.
+        if not isinstance(name, str) or not name:
+            raise TypeError(
+                f"a tool name must be a non-empty string, {tool!r} has name={name!r}"
+            )
+        if not callable(tool.execute):
+            raise TypeError(f"a tool's execute must be callable, {tool!r} has {tool.execute!r}")
+
+        registry = self._tools
 
         def execute():
             if name in registry:
@@ -234,20 +248,28 @@ class ToolsService(Service):
 
         return self.ctx.effect(execute, "ctx.tools.guard()")
 
+    @property
+    def _approver(self) -> Callable[[ToolExecution, str | None], Any] | None:
+        """The most recently registered approver, or None."""
+        return self._approvers[-1] if self._approvers else None
+
     def set_approver(self, approver: Callable[[ToolExecution, str | None], Any]):
         """Register who answers an `Ask`. Returns a disposer.
 
         Registered rather than injected so that `Ask` fails closed by default:
         a composition with no approver denies instead of hanging or allowing.
+
+        The most recent registration wins. Disposing any registration removes
+        only that one, in any order.
         """
-        service = self
+        approvers = self._approvers
 
         def execute():
-            previous = service._approver
-            service._approver = approver
+            approvers.append(approver)
 
             def dispose():
-                service._approver = previous
+                if approver in approvers:
+                    approvers.remove(approver)
 
             return dispose
 
