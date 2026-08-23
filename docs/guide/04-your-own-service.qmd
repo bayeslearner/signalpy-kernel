@@ -74,7 +74,7 @@ def add(self, path, handler):
     self._table[path] = handler          # nobody owns this
 ```
 
-## A hazard worth knowing
+## Callable data is not rebound
 
 The rebinding walks attribute access, so it distinguishes a *method* from *data
 that happens to be callable*. Storing a callback on the instance is fine:

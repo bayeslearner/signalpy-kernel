@@ -8,9 +8,9 @@ subtitle: "provide(), and a ctx your type checker understands"
 Most Python DI frameworks ask you to mark up your classes:
 
 ```python
-@component("greeter", version="1.0")          # a decorator-based kernel
-@provides("IGreeter")
-@requires(database=IDatabase)
+@ComponentFactory("greeter-factory")           # iPOPO
+@Provides("greeter.service")
+@Requires("_db", "database.service")
 class Greeter: ...
 ```
 
@@ -21,7 +21,7 @@ def __init__(self, db: Database = Provide[Container.db]): ...
 
 Both work. Both cost you the same three things:
 
-1. **Your class now imports the framework.** It cannot be lifted into another
+1. **Your class now imports the framework.** It cannot be moved to another
    project without bringing the framework along.
 2. **You cannot construct it in a test.** `Greeter()` needs a kernel, a
    container, or a fixture that stands one up.
@@ -97,8 +97,8 @@ provide(Greeter,  "greeter", needs=["database"]) # asks for "database"
 Deriving the name from the class would break silently. Rename `Database` to
 `PostgresDatabase` and the service becomes `postgres_database`, so `Greeter`
 waits forever for a `database` that never arrives — with **no error**, because a
-plugin waiting on an absent service is indistinguishable from one that is simply
-not needed yet.
+plugin waiting on an absent service is indistinguishable from one that is not
+needed yet.
 
 Naming it yourself also pushes you toward the *role* rather than the
 implementation, which is what makes swapping possible:
@@ -171,6 +171,7 @@ Constructor arguments can come from config instead of from services:
 ```python
 provide(
     Database,
+    "database",
     config={"dsn": ("db.dsn", "sqlite://")},   # (key, default)
 )
 ```

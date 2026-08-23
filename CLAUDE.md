@@ -18,11 +18,13 @@ Four concepts: **context** (a lookup table of services), **service** (something
 registered under a name), **plugin** (a callable that gets a context and
 registers things), **fiber** (one mounted plugin and everything it registered).
 
-**The kernel is vendored, not ours.** ~74% of the lines are a port of Cordis, the
-plugin framework underneath DeepSeek Harness. What is ours: the conformance suite
-(which found two of the three public ports broken), the carrier fix to the third,
-`binding.py` (the POPO layer — the one original design), and the tool pipeline
-implementation. Do not let the docs drift into claiming more than that.
+**The kernel in `cordis/` derives from Cordis** (MIT), the plugin framework
+underneath DeepSeek Harness, by way of `geohotstan/cordis-py`. Roughly two thirds
+of the source lines. What is plugkit's own: `binding.py`, Protocol-driven
+injection, `signals.py`, supervision, the tool pipeline, the loader, subscript
+access, and the conformance suite. Docs lead with what the project does and keep
+provenance in its own section — do not let them drift back to leading with it,
+and do not let them claim more than the split above.
 
 Matching Cordis's semantics is practical rather than decorative: it keeps dsh's
 documentation a working specification for anything built here.
@@ -88,10 +90,16 @@ than fail — the suite passes with and without them, and that is deliberate.
 
 ## Working rules
 
-**`test_conformance.py` is the gate that matters.** Nine assertions traced to
+**`test_conformance.py` is the gate.** 17 assertions traced to
 `vendor/cordis/src/*.ts` rather than to this implementation. Run it first when
 taking any upstream change. It is what decided which of the three public Cordis
 ports to vendor.
+
+**`test_bare_install.py` is the release gate.** `pyproject.toml` declares
+`dependencies = []`, so a module-level import of a third-party package breaks
+`import plugkit` for everyone who ran a plain `pip install`. The dev environment
+has every extra installed and cannot see it; that test hides them in a subprocess.
+Two such bugs shipped in the vendored kernel before it existed.
 
 **Components stay plain objects.** A class the kernel wires must import nothing
 from `plugkit` and must be constructible in a test with no fixtures.

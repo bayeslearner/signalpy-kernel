@@ -1,17 +1,19 @@
 ---
 title: "Why plugkit exists"
-subtitle: "The bug that is not a bug"
+subtitle: "Unload the plugin. The route stays."
 ---
 
-## Start with a bug that is not a bug
+## The route that will not go away
 
-Here is a component in a framework that gives it a lifecycle, working exactly as
-designed:
+Below is a component in a hypothetical framework that gives components a
+lifecycle. The decorator names are invented for this example — iPOPO, Spring and
+OSGi's Declarative Services all spell them differently — but the shape is the one
+they share: declare what you provide, declare what you need, and write a pair of
+lifecycle methods.
 
 ```python
-@component("http-server", version="1.0")
+@component("http-server")
 @provides("IHttpServer")
-@requires(config=IConfig)
 class HttpServer:
     @lifecycle.activate
     def activate(self):
@@ -23,28 +25,32 @@ class HttpServer:
         self.app = None
 ```
 
-Now a second component adds a route to that server:
+A second component adds a route to that server:
 
 ```python
 @component("admin-api")
-@requires(server=IHttpServer)
+@requires(server="IHttpServer")
 class AdminApi:
     @lifecycle.activate
     def activate(self):
-        self.rt.server.app.add_route("/admin", self.handle)
+        self.server.app.add_route("/admin", self.handle)
 ```
 
-Unload `AdminApi`. What happens to `/admin`?
+Unload `AdminApi`. The `/admin` route stays.
 
-It stays. Nothing recorded that `AdminApi` added it, so nothing removes it. The
-route now points at a method on a component that no longer exists. `AdminApi` can
-write a `deactivate` that removes it, and probably will, and will get it right
-today and wrong in six months when someone adds a second route and updates only
-one of the two lists.
+Nothing recorded that `AdminApi` added it, so nothing removes it, and the route
+now points at a method on a component that no longer exists. The author of
+`AdminApi` can write a `deactivate` that removes it, and probably will, and will
+get it right today and wrong in six months when someone adds a second route and
+updates only one of the two lists.
 
 **This is not a missing feature. It is a missing invariant.** Nothing *owns* the
 undo of what a component did, so teardown is a promise each component makes
 individually and the framework cannot check it.
+
+Nor is it a defect in the invented framework: every real one named above behaves
+this way. [Why not build on iPOPO](../design/why-not-ipopo.qmd) runs this exact
+test against iPOPO, where the route survives `@Invalidate`.
 
 ## The one idea in plugkit
 
@@ -122,7 +128,7 @@ time, which is what lets it guarantee teardown instead of hoping for it.
 ## "But now my class imports the framework"
 
 Correct, and that is the usual cost. A class covered in framework decorators
-cannot be constructed in a test without the framework, and cannot be lifted into
+cannot be constructed in a test without the framework, and cannot be moved into
 another project.
 
 plugkit separates the component from its registration:

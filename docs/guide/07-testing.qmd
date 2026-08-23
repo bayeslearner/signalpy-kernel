@@ -150,13 +150,19 @@ async def test_the_guard_denies():
 
 ## What plugkit's own suite does
 
-299 tests, and three of them are worth copying as patterns:
+Four tests in plugkit's own suite are patterns you can copy:
 
 | Test | Pattern |
 |---|---|
 | `test_component_needs_no_kernel_at_all` | asserts the components in the file import nothing from plugkit |
 | `test_every_export_is_exercised_somewhere` | walks `__all__` and fails on a name no test mentions |
 | `test_readme_examples.py` | runs every README example and asserts the prose's claims |
+| `test_bare_install.py` | imports every module with the optional packages hidden |
 
 The third exists because the README once documented an API that did not exist. If
 your docs make a claim, run it.
+
+The fourth exists because the development environment has every optional package
+installed, so the suite cannot see an import that a plain `pip install` would
+break. It hides `yaml` and `watchdog` from a subprocess and imports the package
+as a bare user would.

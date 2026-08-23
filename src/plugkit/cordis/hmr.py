@@ -28,16 +28,20 @@ from .service import Service
 try:  # optional dependency — enables the event-driven watcher
     from watchdog.events import FileSystemEventHandler
     from watchdog.observers import Observer
-except ImportError:  # pragma: no cover — exercised by the polling tests
+except ImportError:  # pragma: no cover - covered by test_bare_install
     FileSystemEventHandler = None
     Observer = None
 
 WATCHDOG_AVAILABLE = Observer is not None
 
+# A class body runs at import, so `class _WatchHandler(None)` would make
+# `import plugkit` fail on the bare install rather than fall back to polling.
+_WatchBase = FileSystemEventHandler if WATCHDOG_AVAILABLE else object
+
 _DEFAULT_IGNORED = ("**/node_modules", "**/.*", "cache", "data")
 
 
-class _WatchHandler(FileSystemEventHandler):
+class _WatchHandler(_WatchBase):
     def __init__(self, hmr: "Hmr", is_ignored):
         self._hmr = hmr
         self._is_ignored = is_ignored

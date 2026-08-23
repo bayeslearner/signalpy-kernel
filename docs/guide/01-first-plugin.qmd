@@ -132,8 +132,7 @@ def audit(ctx, config=None):
 
 ## Watch unload be total
 
-This is the part worth actually running, because reading about it is less
-convincing than watching it:
+Run this one. The behaviour is easier to believe from output than from prose:
 
 ```python
 import asyncio

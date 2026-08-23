@@ -8,7 +8,7 @@ the closest thing in Python to what plugkit does, it is older, larger and better
 tested, and [What plugkit does not replace](what-it-does-not-replace.qmd) says it
 exceeds plugkit in most dimensions.
 
-So it is a fair question why an agent runtime would not simply use it. Four
+So it is a fair question why an agent runtime would not use it. Four
 findings, each from running iPOPO rather than reading about it.
 
 ## 1. Its lifecycle cannot be async

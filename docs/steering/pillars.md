@@ -13,7 +13,7 @@ adopt.
 | **Adoptability** | Whether a stranger can put a component into this without adopting a religion | A component is a plain class. It imports nothing from the kernel, is constructible in a test with no fixtures, and works outside this framework unchanged |
 | **Conformance** | Whether "this implements Cordis" is a claim or a fact | `test_conformance.py` passes, every assertion traced to `vendor/cordis/src/*.ts`. DeepSeek Harness's documentation stays a usable specification for anything built here |
 | **Teaching** | Whether the Quarto book explains the model, not just the API | A newcomer can read the guide end to end and write a correct plugin without reading kernel source. Every concept has a runnable example |
-| **Packaging** | Whether it can actually be depended on | `pip install` works, extras are honest about what degrades without them, the vendored fork's provenance and patch list are current |
+| **Packaging** | Whether it can be depended on | `pip install` works, extras are honest about what degrades without them, the vendored fork's provenance and patch list are current |
 
 ## Current state — 2026-08-23
 

@@ -89,7 +89,7 @@ Delete the database entry entirely:
   name: myapp.greeter
 ```
 
-Nothing raises. `greeter` stays `PENDING` and is simply not available. That is
+Nothing raises. `greeter` stays `PENDING` and is not available. That is
 the correct behaviour for an optional feature whose backing service is not
 deployed in this environment.
 

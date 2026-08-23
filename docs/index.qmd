@@ -1,22 +1,15 @@
 ---
 title: "plugkit"
-subtitle: "The Python port of Cordis that actually works, plus a binding layer that keeps your components plain."
+subtitle: "A plugin and dependency-injection kernel for Python."
 ---
 
-::: {.callout-note}
-## Mostly not our work, and it says so
+Your components are plain classes. plugkit constructs them in dependency order,
+passes each one what it asked for, and makes them reachable by name. When a
+component unloads, everything it registered is removed — including registrations
+it made inside *other* components.
 
-About three quarters of plugkit is a vendored port of
-[Cordis](https://github.com/deepseek-ai/deepseek-harness), the plugin framework
-underneath DeepSeek Harness. We did not design it and did not write it.
-
-What this project adds: the finding that **two of the three public Python ports
-are broken**, the conformance suite that proves it, a fix to the third, and one
-original layer — `provide()`, which keeps your components plain classes with no
-framework import.
-
-See [Why plugkit exists](guide/00-why.qmd) and `src/plugkit/VENDORED.md`.
-:::
+That last part is the one thing no other Python framework does, and everything
+else here follows from it.
 
 ```bash
 pip install plugkit
@@ -41,7 +34,7 @@ root.greeter.hello("world")          # "hello world"
 
 | | |
 |---|---|
-| [Why plugkit exists](guide/00-why.qmd) | the bug that is not a bug, and the invariant that fixes it |
+| [Why plugkit exists](guide/00-why.qmd) | the route that outlives the component that added it, and the invariant that fixes it |
 | [Your first plugin](guide/01-first-plugin.qmd) | inject, effects, and watching unload be total |
 | [Plain components](guide/02-popo-components.qmd) | `provide()`, and a `ctx` your type checker understands |
 | [Tools and permission](guide/03-tools.qmd) | the five-stage pipeline, and why a guard has no allow |
@@ -65,3 +58,18 @@ the fiber that owns your plugin's lifetime holds it.**
 
 Hot reload, dependency-driven activation, and safe implementation swapping are
 all consequences of that, not separate features.
+
+## Provenance
+
+The kernel in `src/plugkit/cordis/` derives from **Cordis**, the plugin framework
+underneath [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness),
+by way of [geohotstan/cordis-py](https://github.com/geohotstan/cordis-py). Both
+are MIT.
+
+What is plugkit's own: `binding.py` (`provide()` and `@plugin`), Protocol-driven
+injection, the signals library, supervision, the tool pipeline, the file loader,
+subscript access, and the conformance suite whose assertions are traced to the
+TypeScript rather than to either implementation.
+
+`src/plugkit/VENDORED.md` lists every local change to the vendored kernel and the
+reason for it.

@@ -168,7 +168,7 @@ await root.plugin(timeout_policy)
 ## A timeout notifies; it does not kill
 
 Declaring `timeout_s` is a promise that your tool forwards cancellation to
-something that can actually stop. A body that ignores it will not stop when the
+something that can stop. A body that ignores it will not stop when the
 deadline fires — you will get a `TOOL_TIMEOUT` result while the work continues.
 
 Registration order also picks the semantics. With a timeout and a retry wrapper
