@@ -70,6 +70,7 @@ machinery from the domain services built on it.
 | | |
 |---|---|
 | `ctx.points` | shelf — nothing in it knows what a tool or a route is |
+| `describe()` | shelf — a plain function, not a service |
 | `ctx.reactive`, `ctx.supervisor`, `ctx.loader` | shelves |
 | `ctx.tools` | **book** — names `Tool`, `ToolExecution`, allow and deny |
 
@@ -91,6 +92,28 @@ times in DeepSeek Harness, three times in one file here.
 
 `services/points.py` is that half, once. The two remain separate namespaces on
 purpose: a dispatch mode calls everything it finds, and a tool is not a listener.
+
+### Introspection is a function, not a service
+
+`describe(ctx)` returns a plain snapshot: every fiber with its state, what it
+provides, what it injects, **what it is still missing**, its effects and its
+error. `format_tree` renders one.
+
+It is a function because you need to inspect a system that did not plan to be
+inspected. A debugging facility you must remember to mount is unavailable at the
+moment it is wanted. `PointsService` is a service because things register into
+it; nothing registers into a snapshot.
+
+Two records deliberately single-sourced from `reflect.store`: which fiber
+provides a name, and therefore what a fiber provides. `fiber.store` looks like
+the second answer and is not — it is the resolution cache `Context._default_get`
+walks, so it holds everything a fiber can *see*, parents included.
+
+The `diagnostics` extension point is where a plugin says what the kernel cannot
+know. It is the same shape DSH uses for `runtime-diagnostics/invariants`: each
+package owns a companion that registers what it knows, and one service collects
+them. It is also the second consumer of `ctx.points`, which is what that facility
+was built to be judged on.
 
 ### What deliberately has no facility
 

@@ -652,6 +652,7 @@ There is no privileged tier.
 | `plugkit.cordis` | the kernel: contexts, fibers, effects, five event dispatch modes, the registry, the YAML loader, hot module replacement |
 | `plugkit.binding` | `provide()` and `@plugin` |
 | `plugkit.signals` | `Signal`, `Computed`, `Effect`. A standalone library with no kernel import |
+| `plugkit.introspect` | `describe()` and `format_tree()` — a plain snapshot of the running system |
 | `services.points` | `ctx.points` — extension points: many plugins filling one named role |
 | `services.reactive` | `ctx.reactive` — signals bound to fiber lifetime |
 | `services.config` | `ctx.config` — YAML, dict, env and pydantic loading |

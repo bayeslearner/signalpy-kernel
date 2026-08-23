@@ -262,3 +262,43 @@ async def test_a_failed_load_takes_three_ticks():
         seen.append(fiber.state.name)
         await asyncio.sleep(0)
     assert seen == ["LOADING", "LOADING", "UNLOADING", "FAILED"], seen
+
+
+# ── chapter 7: asking the system what it is doing ────────────────────────
+
+
+async def test_describe_names_what_a_pending_plugin_waits_for():
+    """The chapter's claim about the line that saves time."""
+    from plugkit import describe
+
+    root = Context()
+    await root.plugin(provide(Greeter, "greeter", needs=["database"]))
+    await settle()
+
+    def by_name(snapshot, name):
+        return next(f for f in snapshot["fibers"] if f["name"] == name)
+
+    entry = by_name(describe(root), "greeter")
+    assert entry["state"] == "PENDING"
+    assert entry["missing"] == ["database"]
+
+
+async def test_the_diagnostics_example_from_the_chapter():
+    from plugkit import DIAGNOSTICS, describe
+
+    class Pool:
+        size = 4
+
+    root = Context()
+    await root.plugin(PointsService)
+
+    def database(ctx, config=None):
+        pool = Pool()
+        ctx.provide("database", pool)
+        ctx.points.add(DIAGNOSTICS, lambda: {"pool_size": pool.size}, key="database")
+
+    database.inject = ["points"]
+    await root.plugin(database)
+    await settle()
+
+    assert describe(root)["diagnostics"]["database"] == {"pool_size": 4}

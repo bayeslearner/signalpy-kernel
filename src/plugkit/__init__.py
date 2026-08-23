@@ -62,6 +62,7 @@ from .signals import Computed, Effect, Signal, batch, is_stale  # noqa: F401
 
 # The shipped services. They have no privileged status — each is an ordinary
 # plugin you mount or don't, re-exported here only for convenience.
+from .introspect import DIAGNOSTICS, describe, format_tree
 from .services.config import ConfigService
 from .services.points import Contribution, PointsService  # noqa: F401
 from .services.loader import FileLoader, load_app  # noqa: F401
@@ -103,6 +104,9 @@ __all__ = [
     # ── shipped services: ordinary plugins, mount what you need ───────
     "ConfigService",
     "PointsService",
+    "describe",
+    "format_tree",
+    "DIAGNOSTICS",
     "Contribution",
     "FileLoader",
     "load_app",

@@ -149,6 +149,78 @@ async def test_the_guard_denies():
     assert result.error["code"] == "DENIED"
 ```
 
+## Asking the system what it is doing
+
+When a test fails and the reason is not obvious, the usual cause is a plugin that
+never ran. `describe` returns a plain snapshot, and `format_tree` renders it:
+
+```python
+from plugkit import describe, format_tree
+
+print(format_tree(describe(root)))
+```
+
+```
+plugkit — 6 fibers, 4 services
+├─ [1] PointsService  ACTIVE    provides points
+├─ [2] db             ACTIVE    provides database
+├─ [3] ToolsService   ACTIVE    provides tools
+├─ [4] greeter        ACTIVE    provides greeter
+├─ [5] waiting        PENDING   waiting for: cache, queue
+└─ [6] broken         FAILED    ConnectionRefusedError: [Errno 61] Connection refused
+```
+
+Line 5 is the one that saves time. A `PENDING` plugin is the kernel working
+correctly — it waits for a service that is not there — but from outside it looks
+identical to a plugin that never mounted. The snapshot names what it is waiting
+for.
+
+`describe` is a plain function, not a service. You do not mount it, and it works
+on any context, including one written before this existed. That matters because
+you reach for it when something is already wrong.
+
+Assert on the snapshot directly when the shape is the thing under test:
+
+```python
+def by_name(snapshot, name):
+    return next(f for f in snapshot["fibers"] if f["name"] == name)
+
+
+async def test_the_greeter_waits_for_its_database():
+    root = Context()
+    await root.plugin(provide(Greeter, "greeter", needs=["database"]))
+    await settle()
+
+    entry = by_name(describe(root), "greeter")
+    assert entry["state"] == "PENDING"
+    assert entry["missing"] == ["database"]
+```
+
+Everything in a snapshot is a string, number, list or dict, so `json.dumps` works
+on it and a snapshot captured in CI renders the same later.
+
+### Telling it something it cannot know
+
+The kernel knows a fiber's state. It does not know a connection pool's size.
+Contribute a diagnostic:
+
+```python
+def database(ctx, config=None):
+    pool = Pool()
+    ctx.provide("database", pool)
+    ctx.points.add(DIAGNOSTICS, lambda: {"pool_size": pool.size}, key="database")
+
+database.inject = ["points"]
+```
+
+```python
+describe(root)["diagnostics"]["database"]      # {'pool_size': 4}
+```
+
+It needs `PointsService` mounted, it disappears when the plugin unloads, and a
+diagnostic that raises is reported as an error string rather than breaking the
+snapshot.
+
 ## What plugkit's own suite does
 
 Four tests in plugkit's own suite are patterns you can copy:
