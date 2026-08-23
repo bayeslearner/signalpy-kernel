@@ -1,18 +1,49 @@
 # plugkit
 
-A plugin kernel for Python. A plugin registers things and returns a function that
-undoes them. The kernel calls that function when the plugin unloads.
+**plugkit builds a Python application out of parts that can be added and removed
+while the program is running.**
 
-> Most of the code here is vendored. The kernel is a port of [Cordis][cordis],
-> the plugin framework inside DeepSeek Harness. This project adds a conformance
-> suite, a fix to the port it vendored, and one original layer. See
-> [Provenance](#provenance).
+You write ordinary classes. plugkit constructs them in dependency order, passes
+each one what it asked for, and makes them reachable by name. When a part is
+removed, everything that part registered is removed with it.
+
+## What it provides
+
+| | |
+|---|---|
+| **Dependency injection** | Declare what a class needs. plugkit constructs it and passes in the dependencies. Your classes need no decorators, no base class, and no import from plugkit. |
+| **Startup without a boot sequence** | A part runs once its dependencies exist, not at a position you chose. The order you register parts in does not matter. |
+| **Guaranteed teardown** | Each part returns a function that undoes its work. plugkit calls it whenever the part is removed, for any reason. |
+| **Add and remove at runtime** | Load and unload parts while the program runs, including reloading source files you have just edited. |
+| **Implementation swapping** | Replace one service with another. Every part that used the old one is rebuilt with the new one, so none keeps a stale reference. |
+| **Composition from a file** | Describe an application as a YAML list of parts and their settings. |
+
+Four services ship alongside, each an ordinary part you mount or leave out:
+configuration, reactive values, supervised restarts, and a tool registry with a
+permission pipeline.
+
+## When to use it
+
+Use plugkit when parts of your program need to appear and disappear while it
+runs: plugin hosts, extension systems, long-running agents, servers whose
+features differ per deployment, or anything that must reload without a restart.
+
+Do not use it for a script, or for a program whose set of components is fixed at
+startup. Constructing your objects directly is simpler and none of the above
+applies.
+
+> The kernel is not original work. It is a vendored port of an existing plugin
+> framework, described in [Provenance](#provenance).
 
 ```bash
 pip install plugkit
 ```
 
 ## Quick start
+
+The program below builds two objects and connects them. `Greeter` needs a
+`Database` in its constructor. plugkit constructs both, passes one into the
+other, and makes each reachable by name.
 
 ```python
 import asyncio
@@ -43,7 +74,16 @@ async def main():
 asyncio.run(main())
 ```
 
-Neither class imports plugkit.
+The two `provide` calls do the wiring:
+
+- `provide(Database, "database")` constructs `Database()` and registers it under
+  the name `"database"`.
+- `provide(Greeter, "greeter", needs=["database"])` waits until `"database"`
+  exists, then constructs `Greeter(database=<that object>)` and registers it
+  under `"greeter"`.
+
+`root.greeter` returns the `Greeter` instance. Neither class imports plugkit;
+both are ordinary Python classes with ordinary constructors.
 
 ## Four terms
 
@@ -57,7 +97,11 @@ Neither class imports plugkit.
 Services are found by **name**, never by type. `needs=["database"]` means "the
 service registered under the string `database`". The class is never inspected.
 
-## The problem plugkit solves
+## Why a plugin returns a disposer
+
+This example has two plugins. The first owns a `Server` object. The second adds
+a route to it. When the second plugin is unloaded its route stays behind, and the
+rest of this section fixes that.
 
 `Server` is your class. The kernel has no knowledge of its contents.
 
@@ -110,6 +154,8 @@ def admin_api(ctx, config=None):
 
 admin_api.inject = ["server"]
 ```
+
+Mounting and then disposing the plugin now prints:
 
 ```
 ['/admin']
@@ -193,6 +239,9 @@ URL. Use the parameter for what distinguishes one mount from another.
 
 ### `inject`
 
+Every plugin that uses a service must declare it. The declaration is a list of
+names on the function:
+
 ```python
 admin_api.inject = ["server"]
 ```
@@ -237,6 +286,8 @@ class Greeter:
         self.database = database
         self.prefix = prefix
 ```
+
+The wiring lives in a separate file:
 
 ```python
 # app.py — the only file that imports plugkit
@@ -303,6 +354,9 @@ checks the constructor.
 
 ### Config reaching the constructor
 
+A constructor argument can come from `ctx.config` instead of from a service. Give
+`config` a mapping of constructor keyword to `(key, default)`:
+
 ```python
 provide(Database, "database", config={"dsn": ("db.dsn", "sqlite://")})
 ```
@@ -364,6 +418,8 @@ There is no privileged tier.
 | `services.tools` | `ctx.tools` — a tool registry with a five-stage permission pipeline |
 | `services.supervision` | `ctx.supervisor` — restart strategies for failed fibers |
 
+Two services need a third-party package. Install them as extras:
+
 ```bash
 pip install "plugkit[config]"    # dependency-injector, for env and pydantic config
 pip install "plugkit[hmr]"       # watchdog, for hot module replacement
@@ -372,24 +428,33 @@ pip install "plugkit[hmr]"       # watchdog, for hot module replacement
 Both extras degrade rather than fail. Without `config`, `ConfigService` still
 loads dicts and YAML. The test suite runs in both configurations.
 
-## Why the port is faithful
-
-[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) is about
-457,000 lines of TypeScript, structured entirely as Cordis plugins. plugkit keeps
-Cordis's event names, dispatch modes and lifetime rules, so DeepSeek's
-documentation describes this kernel accurately: its 58-service catalogue, its
-five-stage tool pipeline and its filesystem policy events all apply here.
-
-The conformance suite therefore tests against the TypeScript source, not against
-this implementation.
-
 ## Provenance
+
+### What Cordis is
+
+**[Cordis][cordis]** is a plugin framework written in TypeScript. Its model is the one
+described above: a plugin is a function that registers things and returns their
+undo, and a "fiber" owns those undos.
+
+It is the foundation of **DeepSeek Harness**, DeepSeek's open-source agent
+runtime — about 457,000 lines of TypeScript in which every capability, including
+the model adapter and the main loop, is a Cordis plugin. Cordis is therefore a
+design proven at a size worth copying rather than a fresh idea.
+
+plugkit is a Python port of Cordis with the same event names, dispatch modes and
+lifetime rules. Because the semantics match, DeepSeek Harness's documentation
+describes this kernel accurately: its 58-service catalogue, its five-stage tool
+pipeline and its filesystem policy events all apply here. Its test suite therefore
+checks this implementation against the TypeScript source rather than against
+itself.
+
+### What is vendored and what is not
 
 9,884 lines vendored, 3,509 written here.
 
 | | |
 |---|---|
-| **Vendored** | The kernel, a port of [Cordis][cordis] by [geohotstan](https://github.com/geohotstan/cordis-py), MIT. 4,298 lines of source and 5,586 of tests. |
+| **Vendored** | The kernel. A Cordis port by [geohotstan](https://github.com/geohotstan/cordis-py), MIT. 4,298 lines of source and 5,586 of tests. |
 | **Finding** | Three MIT Python ports of Cordis exist. Two do not work. In one, `ctx.effect()` raises `'Symbol' object is not callable`, and its 59 tests never call it. Another replaced the string-keyed API with typed tokens. |
 | **Conformance suite** | `test_conformance.py`. Nine assertions traced to `vendor/cordis/src/*.ts`. It scored the three ports 6/9, 5/9 and not applicable, and gates every upstream change. |
 | **Fix** | The vendored port passed the dispatch carrier as a leading positional argument to every listener. Cordis binds it as `this`. The difference changes every listener's arity, so plugins written from DeepSeek's documentation fail. Now ambient, via a `ContextVar`. |
@@ -404,6 +469,8 @@ maintained here as a fork rather than consumed as a dependency.
 [cordis]: https://github.com/deepseek-ai/deepseek-harness/tree/master/vendor/cordis
 
 ## Development
+
+Run the test suite:
 
 ```bash
 uv run pytest src/plugkit/tests -q                              # 249 passed
