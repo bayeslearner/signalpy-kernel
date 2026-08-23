@@ -292,8 +292,8 @@ after its side effects had already happened.
 - **Conformance** (`test_conformance.py`): the primary gate. Thirteen assertions
   traced to `vendor/cordis/src/*.ts`, not to this implementation.
 - **Vendored suite**: upstream's, kept passing.
-- **Per-feature**: one file each, asserting the property that makes the feature
-  worth having rather than its API surface.
+- **Per-feature**: one file each, asserting the property the feature exists to
+  provide rather than its API surface.
 - **Documentation**: `test_readme_examples.py` and `test_guide_examples.py` run
   every published example.
 - **Typing** (`test_typing.py`): pyright over the typed-context patterns; skipped

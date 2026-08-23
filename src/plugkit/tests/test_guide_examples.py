@@ -8,7 +8,14 @@ import asyncio
 
 import pytest
 
-from plugkit import Context, FiberState, Service, plugin, provide
+from plugkit import (
+    Context,
+    FiberState,
+    PointsService,
+    Service,
+    plugin,
+    provide,
+)
 
 
 async def settle(n=15):
@@ -16,45 +23,112 @@ async def settle(n=15):
         await asyncio.sleep(0)
 
 
-# ── chapter 4: writing your own service ──────────────────────────────────
+# ── chapter 4: extension points ──────────────────────────────────────────
 
 
-class Routes(Service):
-    provide = "routes"
-
-    def __init__(self, ctx, config=None):
-        super().__init__(ctx)
-        self._table: dict = {}
-
-    def add(self, path: str, handler: object):
-        table = self._table
-
-        def install():
-            table[path] = handler
-            return lambda: table.pop(path, None)
-
-        return self.ctx.effect(install, f"routes.add({path!r})")
-
-    def paths(self):
-        return sorted(self._table)
-
-
-async def test_a_registry_service_owns_registrations_by_caller():
-    """The chapter's claim: unload the caller and its route disappears."""
+async def test_a_contribution_dies_with_its_contributor():
+    """The chapter's first claim: unload the contributor, the route goes."""
     root = Context()
-    await root.plugin(Routes)
+    await root.plugin(PointsService)
 
     def admin(ctx, config=None):
-        ctx.routes.add("/admin", "handler")
+        ctx.points.add("http.routes", "admin_page", key="/admin", order=10)
 
-    admin.inject = ["routes"]
+    admin.inject = ["points"]
     fiber = await root.plugin(admin)
     await settle()
-    assert root.routes.paths() == ["/admin"]
+    assert root.points.all("http.routes") == ["admin_page"]
 
     await fiber.dispose()
     await settle()
-    assert root.routes.paths() == [], "the route outlived the plugin that added it"
+    assert root.points.all("http.routes") == [], "the route outlived its plugin"
+
+
+async def test_the_reading_api_the_chapter_shows():
+    root = Context()
+    await root.plugin(PointsService)
+    root.points.add("http.routes", "admin", key="/admin", method="GET")
+    root.points.add("http.routes", "submit", key="/submit", method="POST")
+
+    assert root.points.all("http.routes") == ["admin", "submit"]
+    assert root.points.get("http.routes", "/admin") == "admin"
+    assert root.points.where("http.routes", method="GET") == ["admin"]
+    assert root.points.names() == ["http.routes"]
+
+
+async def test_on_change_wakes_the_consumer_and_dies_with_it():
+    root = Context()
+    await root.plugin(PointsService)
+    rebuilds = []
+
+    def router(ctx, config=None):
+        ctx.points.on_change("http.routes", lambda: rebuilds.append(1))
+
+    router.inject = ["points"]
+    fiber = await root.plugin(router)
+    await settle()
+
+    root.points.add("http.routes", "a")
+    assert rebuilds == [1]
+
+    await fiber.dispose()
+    root.points.add("http.routes", "b")
+    assert rebuilds == [1], "the consumer unloaded and was still called"
+
+
+async def test_last_does_not_assume_reverse_unload_order():
+    """The chapter's claim about why `last()` exists rather than a saved slot."""
+    root = Context()
+    await root.plugin(PointsService)
+
+    older = root.points.add("tools.approvers", "old_approver")
+    root.points.add("tools.approvers", "new_approver")
+
+    older()  # the *older* registration goes first
+    assert root.points.last("tools.approvers") == "new_approver"
+
+
+class Router(Service):
+    """The chapter's `Service` example, verbatim."""
+
+    provide = "router"
+    inject = ["points"]
+
+    def add(self, path: str, handler: object):
+        return self.ctx.points.add("http.routes", handler, key=path, unique=True)
+
+    def resolve(self, path: str):
+        return self.ctx.points.get("http.routes", path)
+
+
+async def test_a_service_holding_its_collection_in_a_point():
+    root = Context()
+    await root.plugin(PointsService)
+    await root.plugin(Router)
+    await settle()
+
+    def admin(ctx, config=None):
+        ctx.router.add("/admin", "admin_page")
+
+    admin.inject = ["router"]
+    fiber = await root.plugin(admin)
+    await settle()
+    assert root.router.resolve("/admin") == "admin_page"
+
+    await fiber.dispose()
+    await settle()
+    assert root.router.resolve("/admin") is None, "rebinding did not reach the caller"
+
+
+async def test_unique_rejects_a_second_route_on_one_path():
+    root = Context()
+    await root.plugin(PointsService)
+    await root.plugin(Router)
+    await settle()
+
+    root.router.add("/admin", "first")
+    with pytest.raises(ValueError):
+        root.router.add("/admin", "second")
 
 
 async def test_a_callable_held_as_service_data_is_not_rebound():

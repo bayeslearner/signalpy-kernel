@@ -25,7 +25,7 @@ website:
             href: guide/02-popo-components.qmd
           - text: "Tools and permission"
             href: guide/03-tools.qmd
-          - text: "Writing your own service"
+          - text: "Extension points"
             href: guide/04-your-own-service.qmd
           - text: "Config and reactivity"
             href: guide/05-config-and-reactivity.qmd

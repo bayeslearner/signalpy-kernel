@@ -212,6 +212,7 @@ successes is not an audit.
 Three plugins that have never heard of each other:
 
 ```python
+await root.plugin(PointsService)   # tools holds its registries in points
 await root.plugin(ToolsService)
 await root.plugin(search_plugin)      # provides a tool
 await root.plugin(delete_plugin)      # provides another
@@ -235,8 +236,8 @@ directly.
 
 ## Next
 
-[Writing your own service](04-your-own-service.qmd) — how `ctx.tools` itself is
-built, and how to build a registry like it.
+[Extension points](04-your-own-service.qmd) — how `ctx.tools` holds its tools,
+and how to build a collection others contribute to.
 
 - [`docs/design/kernel-architecture.md`](https://github.com/bayeslearner/plugkit/blob/main/docs/design/kernel-architecture.md) — the architecture anchor
 - `src/plugkit/tests/test_tools.py` — one test per stage, plus the properties above

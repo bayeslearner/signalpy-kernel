@@ -95,7 +95,7 @@ and leave.
 
 ## Testing that teardown happened
 
-The property worth asserting is that unload removed everything:
+Assert that unload removed everything:
 
 ```python
 async def test_unload_is_total():
@@ -138,6 +138,7 @@ itself.
 ```python
 async def test_the_guard_denies():
     root = Context()
+    await root.plugin(PointsService)
     await root.plugin(ToolsService)
     await root.plugin(register_delete_tool)
     await root.plugin(safety_guard)

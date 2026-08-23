@@ -1,7 +1,7 @@
 ---
 spec_id: 03-extension-points
-status: ACTIVE
-closed_as: null
+status: CLOSED
+closed_as: SHIPPED
 since: 2026-08-23
 until: null
 epic: meta-layer
@@ -210,9 +210,9 @@ way.
 - [x] **T3** — `tests/test_points.py`, 32 tests across R1–R6
 - [x] **T4** — `tools.py` rewritten on it
 - [x] **T5** — R7 measured, below
-- [ ] **T6** — guide chapter, and update chapter 04, which teaches hand-rolling
-      a registry
-- [ ] **T7** — `docs/design/kernel-architecture.md`: where the facility sits
+- [x] **T6** — chapter 04 rewritten as "Extension points"; six new examples in `test_guide_examples.py`; chapter 03 and 07 updated to mount `PointsService`
+
+- [x] **T7** — `kernel-architecture.md` gains a "meta layer" section: the shelf/book test, the invoke/enumerate split, and what deliberately has no facility
 
 ## R7, measured
 

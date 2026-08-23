@@ -57,6 +57,49 @@ cannot inject a service to do so.
 that direction would make a service load-bearing, which is the tier this design
 deleted.
 
+Services may depend on each other, and one does: `services/tools` declares
+`inject = ["points"]`. That is an ordinary dependency between two plugins, not a
+tier — a composition that mounts neither still boots.
+
+## The meta layer
+
+A **meta-layer** facility works the same on a database plugin, an HTTP server and
+a model adapter, and never names a domain concept. That test sorts the general
+machinery from the domain services built on it.
+
+| | |
+|---|---|
+| `ctx.points` | shelf — nothing in it knows what a tool or a route is |
+| `ctx.reactive`, `ctx.supervisor`, `ctx.loader` | shelves |
+| `ctx.tools` | **book** — names `Tool`, `ToolExecution`, allow and deny |
+
+`ctx.tools` shipped before the shelf it belongs on, and built three registries
+inside itself as a result. It now holds its tools, guards and approvers in
+extension points.
+
+### Extension points, and the half the kernel already had
+
+`ctx.on` plus the five dispatch modes is already a named role that many plugins
+contribute to, each contribution owned by the contributing fiber
+(`events.py:register` wraps every listener in `ctx.fiber.effect`), filtered by
+context in `_resolve`. That is the **invoke** half.
+
+What it lacks is the **enumerate** half: `_hooks` is private, the chain is
+anonymous, contributions carry no properties, and a consumer cannot be woken when
+the set changes. Those four get hand-written wherever they are needed — eleven
+times in DeepSeek Harness, three times in one file here.
+
+`services/points.py` is that half, once. The two remain separate namespaces on
+purpose: a dispatch mode calls everything it finds, and a tool is not a listener.
+
+### What deliberately has no facility
+
+| | why |
+|---|---|
+| interception | `waterfall` is already middleware-as-an-event. DSH's guards are plain `ctx.on('tools/execute', ...)` listeners with no registry at all. |
+| start levels | activation is service-availability driven. DSH states the same rule in `bundle/base/cordis.patch.yml`. |
+| readiness | `FiberState.ACTIVE` is liveness. No evidence yet that a separate readiness gate is wanted at this layer. |
+
 ## The lifecycle contract
 
 A fiber is in one of six states. The transitions are driven by one value.

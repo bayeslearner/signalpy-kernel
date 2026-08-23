@@ -652,9 +652,10 @@ There is no privileged tier.
 | `plugkit.cordis` | the kernel: contexts, fibers, effects, five event dispatch modes, the registry, the YAML loader, hot module replacement |
 | `plugkit.binding` | `provide()` and `@plugin` |
 | `plugkit.signals` | `Signal`, `Computed`, `Effect`. A standalone library with no kernel import |
+| `services.points` | `ctx.points` — extension points: many plugins filling one named role |
 | `services.reactive` | `ctx.reactive` — signals bound to fiber lifetime |
 | `services.config` | `ctx.config` — YAML, dict, env and pydantic loading |
-| `services.tools` | `ctx.tools` — a tool registry with a five-stage permission pipeline |
+| `services.tools` | `ctx.tools` — a tool registry with a five-stage permission pipeline. Needs `points` |
 | `services.supervision` | `ctx.supervisor` — restart strategies for failed fibers |
 | `services.loader` | `ctx.loader` — mount an application from a YAML file |
 
