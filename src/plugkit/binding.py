@@ -24,7 +24,7 @@ and one line elsewhere says how to wire it:
     from plugkit import provide
     from services.greeter import Greeter
 
-    greeter = provide(Greeter, needs=["db"], config={"prefix": "greeter.prefix"})
+    greeter = provide(Greeter, "greeter", needs=["db"], config={"prefix": "greeter.prefix"})
     await root.plugin(greeter)
 
 `Greeter` stays constructible in a test as `Greeter(db=FakeDB(), prefix="hi")`,
@@ -38,7 +38,7 @@ with no kernel, no container, no fixtures.
         db: Database
         cache: Cache
 
-    provide(Greeter, needs=GreeterDeps)
+    provide(Greeter, "greeter", needs=GreeterDeps)
 
 `typing.get_protocol_members` (Python 3.13+) reads the member names off the
 Protocol, so the same declaration drives the runtime injection *and* the type
@@ -160,7 +160,11 @@ _CAMEL_2 = re.compile(r"([a-z0-9])([A-Z])")
 
 
 def snake_case(name: str) -> str:
-    """`HTTPClient` -> `http_client`. Used to default a service name."""
+    """`HTTPClient` -> `http_client`.
+
+    A helper for picking a service name, not a default — `provide()` makes you
+    name the service yourself. See the note in its docstring for why.
+    """
     return _CAMEL_2.sub(r"\1_\2", _CAMEL_1.sub(r"\1_\2", name)).lower()
 
 
@@ -224,8 +228,8 @@ def _find_closer(obj: Any, close: Any) -> Callable[[], Any] | None:
 
 def provide(
     factory: Callable[..., Any],
+    service_name: str,
     *,
-    as_: str | None = None,
     needs: Any = None,
     config: Mapping[str, Any] | None = None,
     close: Any = None,
@@ -234,20 +238,48 @@ def provide(
 ):
     """Wrap a plain class or factory as a plugin that registers one service.
 
+        provide(PostgresDatabase, "database")
+        provide(Greeter, "greeter", needs=["database"])
+
+    **The service name is required, deliberately.** Everything in this kernel is
+    looked up by string name, so the name *is* the component's public interface.
+    An earlier version defaulted it to `snake_case(factory.__name__)`, which made
+    two things go wrong at once:
+
+    - It read like type-based injection. It is not — `needs=["database"]` means
+      "the service named `database`", and the class is never consulted. It only
+      appeared to work because `Database` snake_cases to `database`.
+    - Renaming the class silently broke the wiring. `Database` → `PostgresDatabase`
+      changes the service name to `postgres_database`, so every dependent stops
+      activating, with no error, because a plugin waiting on a service that never
+      arrives is indistinguishable from one that is simply not needed yet.
+
+    Naming it yourself also pushes you toward the *role* rather than the
+    implementation, which is what makes swapping implementations possible:
+    `provide(PostgresDatabase, "database")` today, `provide(SqliteDatabase,
+    "database")` tomorrow, and no dependent changes.
+
     Args:
         factory: the component — a plain class or any callable. Never sees `ctx`.
-        as_: service name to register under. Defaults to `snake_case(factory.__name__)`.
+        service_name: the name to register under. Other plugins ask for this string.
         needs: services to pass to the constructor. List, dict, Protocol, or str.
+            A list means "the kwarg and the service share a name"; use a dict
+            (`{"db": "database"}`) when they differ.
         config: constructor kwargs read from `ctx.config`, as `{kwarg: key}` or
             `{kwarg: (key, default)}`.
         close: teardown method name, or False to skip. Auto-detected by default.
-        name: plugin name shown in fiber diagnostics. Defaults to `as_`.
+        name: plugin name shown in fiber diagnostics. Defaults to `service_name`.
         extra: literal constructor kwargs, passed through untouched.
 
     Returns:
-        A plugin object suitable for `ctx.plugin(...)`.
+        A plugin mapping suitable for `ctx.plugin(...)`.
     """
-    service_name = as_ or snake_case(getattr(factory, "__name__", "service"))
+    if not isinstance(service_name, str) or not service_name:
+        raise TypeError(
+            f"provide() needs a service name as its second argument, got {service_name!r}. "
+            f'Try provide({getattr(factory, "__name__", "Thing")}, '
+            f'"{snake_case(getattr(factory, "__name__", "thing"))}").'
+        )
     wiring = _resolve_needs(needs)
     config_spec = _resolve_config(config)
     literals = dict(extra or {})
@@ -335,8 +367,8 @@ def bind(**bindings) -> list:
     """Several `provide()` results at once, for a composition root.
 
         plugins = bind(
-            db=provide(Database, config={"dsn": "db.dsn"}),
-            greeter=provide(Greeter, needs=["db"]),
+            db=provide(Database, "db", config={"dsn": "db.dsn"}),
+            greeter=provide(Greeter, "greeter", needs=["db"]),
         )
         for plugin in plugins:
             await root.plugin(plugin)

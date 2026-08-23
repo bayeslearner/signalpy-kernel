@@ -123,6 +123,51 @@ class Context:
 
         return self._reflect_get(name)
 
+    # ── subscript access ──────────────────────────────────────────────
+    #
+    # `ctx["database"]` is the same lookup as `ctx.database`, spelled so the
+    # string is visible. Services are found by name, never by type, and the
+    # attribute form hides that well enough that people read it as type-based
+    # injection. This form cannot be misread, and it is the only way to reach a
+    # service whose name is not a valid Python identifier.
+    #
+    # Identical rules: same isolation scope, same refusal to read a service the
+    # current fiber did not inject.
+
+    def __getitem__(self, name: str) -> Any:
+        if not isinstance(name, str):
+            raise TypeError(f"a service name must be a string, got {name!r}")
+        try:
+            return getattr(self, name)
+        except AttributeError as exc:
+            raise KeyError(str(exc)) from exc
+
+    def __setitem__(self, name: str, value: Any) -> None:
+        """Update an already-provided service. This does not register one.
+
+        Registering is `ctx.provide(name, value)`, which hands back the disposer
+        that makes it reversible. A bare assignment has nowhere to put a
+        disposer, so it is refused — the same reasoning that refuses a read of a
+        service the fiber did not inject.
+        """
+        if not isinstance(name, str):
+            raise TypeError(f"a service name must be a string, got {name!r}")
+        setattr(self, name, value)
+
+    def __contains__(self, name: object) -> bool:
+        """True when `name` resolves to a service *this* fiber may read.
+
+        False rather than raising for a service that exists but was not
+        injected — `in` answers "can I use this", which is the question a
+        caller is actually asking.
+        """
+        if not isinstance(name, str):
+            return False
+        try:
+            return getattr(self, name) is not None
+        except (AttributeError, KeyError):
+            return False
+
     def _reflect_get(self, name: str, receiver: Any = None) -> Any:
         error = AttributeError(f'cannot get property "{name}" without inject')
         prop = self.reflect.props.get(name)

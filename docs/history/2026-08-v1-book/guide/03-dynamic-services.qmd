@@ -16,7 +16,7 @@ sequenceDiagram
     participant S as Signal (rt.dicts)
     participant E as @effect rebuild_index
 
-    H->>R: provide(IDictionary, german)
+    H->>R: provide(IDictionary, "i_dictionary", german)
     R->>S: Signal.set([en, fr, de])
     S->>E: notify: deps changed
     E->>E: re-run → rebuilds index

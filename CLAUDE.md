@@ -18,8 +18,13 @@ Four concepts: **context** (a lookup table of services), **service** (something
 registered under a name), **plugin** (a callable that gets a context and
 registers things), **fiber** (one mounted plugin and everything it registered).
 
-The kernel is a port of Cordis, the plugin framework underneath DeepSeek Harness.
-That is practical rather than decorative: matching Cordis's semantics keeps dsh's
+**The kernel is vendored, not ours.** ~74% of the lines are a port of Cordis, the
+plugin framework underneath DeepSeek Harness. What is ours: the conformance suite
+(which found two of the three public ports broken), the carrier fix to the third,
+`binding.py` (the POPO layer — the one original design), and the tool pipeline
+implementation. Do not let the docs drift into claiming more than that.
+
+Matching Cordis's semantics is practical rather than decorative: it keeps dsh's
 documentation a working specification for anything built here.
 
 ## Skills to load each session

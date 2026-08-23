@@ -28,7 +28,7 @@ its `Singleton`. Nothing was added to the kernel to allow it.
     from plugkit import Context
     from plugkit.examples.alternative_binding import provide_factory
 
-    await root.plugin(provide_factory(RequestScope, as_="request"))
+    await root.plugin(provide_factory(RequestScope, "request"))
     a = root.request()          # a fresh RequestScope
     b = root.request()          # a different one
 """
@@ -37,7 +37,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Mapping
 
-from ..binding import _resolve_needs, snake_case
+from ..binding import _resolve_needs
 
 __all__ = ["provide_factory"]
 
@@ -65,8 +65,8 @@ class _Factory:
 
 def provide_factory(
     factory: Callable[..., Any],
+    service_name: str,
     *,
-    as_: str | None = None,
     needs: Any = None,
     extra: Mapping[str, Any] | None = None,
 ):
@@ -78,7 +78,6 @@ def provide_factory(
     Note what this does NOT need: no kernel change, no new event, no hook. It is
     an ordinary plugin, because construction policy was always above the line.
     """
-    service_name = as_ or snake_case(getattr(factory, "__name__", "factory"))
     wiring = _resolve_needs(needs)
 
     def apply(ctx, plugin_config=None):

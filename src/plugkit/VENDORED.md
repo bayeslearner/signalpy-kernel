@@ -53,7 +53,19 @@ extras. Python has no such tolerance, and every real Cordis default is nullary
 (`() => ({ kind: 'allow' })`), so `events.waterfall` calls `inner()`. See the comment at the
 call site.
 
-### 3. Packaging
+### 3. Subscript access on `Context`
+
+Added `__getitem__`, `__setitem__` and `__contains__`, delegating to the same
+attribute path (`cordis/context.py`). Not upstream, and not a semantic change —
+`ctx["database"]` resolves exactly as `ctx.database` does, under the same
+isolation scope and the same refusal to read an uninjected service.
+
+The reason is teaching rather than capability: attribute access reads like
+type-based injection, and this kernel resolves by string name only. Putting the
+string on screen removes the misreading. It also reaches service names that are
+not valid Python identifiers.
+
+### 4. Packaging
 
 Imports are `plugkit.cordis`, not top-level `cordis`, so 1.0 (`src/signalpy`) and 2.0 can be
 installed together. Fixture module paths in `tests/fixtures/base.yml` and the `create.py`

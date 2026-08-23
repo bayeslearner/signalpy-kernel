@@ -1,6 +1,14 @@
 # plugkit
 
-**A plugin kernel for Python. Every registration returns its undo, and something owns it.**
+**The Python port of Cordis that actually works — plus a binding layer that keeps
+your components plain objects.**
+
+> Most of this is not our code. The kernel is a vendored port of
+> [Cordis][cordis], the plugin framework underneath DeepSeek Harness. What we
+> add is the finding that **two of the three public Python ports are broken**,
+> the suite that proves it, a fix to the third, and one original layer that keeps
+> your components plain classes. Full accounting under
+> [Provenance](#provenance).
 
 ```bash
 pip install plugkit
@@ -30,8 +38,8 @@ class Database:
 
 async def main():
     root = Context()
-    await root.plugin(provide(Database))
-    await root.plugin(provide(Greeter, needs=["database"]))
+    await root.plugin(provide(Database, "database"))
+    await root.plugin(provide(Greeter, "greeter", needs=["database"]))
 
     print(root.greeter.hello("world"))     # hello world
 
@@ -73,7 +81,7 @@ Everything else falls out:
 
 | | |
 |---|---|
-| **Context** (`ctx`) | a lookup table of services, plus a scope |
+| **Context** (`ctx`) | a lookup table of services, plus a scope. `ctx.database` and `ctx["database"]` are the same lookup — services are found **by name, never by type** |
 | **Service** | something registered under a name — `ctx.tools`, `ctx.config` |
 | **Plugin** | a callable that gets a context and registers things |
 | **Fiber** | one mounted plugin and everything it registered — the unit of lifetime |
@@ -92,7 +100,7 @@ class Greeter:
 
 ```python
 # app.py — the only file that knows a kernel exists
-greeter = provide(Greeter, needs=["database"], config={"prefix": "greeter.prefix"})
+greeter = provide(Greeter, "greeter", needs=["database"], config={"prefix": "greeter.prefix"})
 ```
 
 `Greeter(database=FakeDB(), prefix="hi")` works in a test with no kernel, no
@@ -104,7 +112,7 @@ class GreeterDeps(Protocol):
     database: Database
     cache: Cache
 
-provide(Greeter, needs=GreeterDeps)     # inject == ["cache", "database"]
+provide(Greeter, "greeter", needs=GreeterDeps)     # inject == ["cache", "database"]
 ```
 
 ## What ships, and what is optional
@@ -130,26 +138,46 @@ pip install "plugkit[hmr]"       # watchdog, for hot module replacement
 Both degrade rather than fail: without `config`, `ConfigService` still loads
 dicts and YAML.
 
-## Where it comes from
+## Why matching Cordis matters
 
-The kernel is a port of **Cordis**, the plugin framework underneath
-[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) — ~457,000
-lines of TypeScript, every part of it a Cordis plugin.
+[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) is ~457,000
+lines of TypeScript, every part of it a Cordis plugin. Because plugkit keeps
+Cordis's semantics — the same event names, the same dispatch modes, the same
+lifetime rules — **dsh's documentation stays a working specification for anything
+you build here.** Its 58-service catalogue, its five-stage tool pipeline, its
+filesystem policy events all describe a substrate that means the same thing in
+this kernel.
 
-That is practical, not decorative: because plugkit matches Cordis's semantics,
-dsh's documentation stays a working specification for anything built here. Its
-58-service catalogue, its five-stage tool pipeline, its filesystem policy events
-all describe a substrate that means the same thing in this kernel.
+That is the practical argument for a faithful port over a Pythonic reinterpretation,
+and it is why the conformance suite tests against the TypeScript rather than
+against ourselves.
 
-`src/plugkit/VENDORED.md` records which of the three public ports was vendored,
-why, and every change made to it. `src/plugkit/tests/test_conformance.py` is the
-gate: nine assertions traced to `vendor/cordis/src/*.ts` rather than to this
-implementation.
+## Provenance
+
+Most of this is not original work, and the split is worth stating plainly:
+**9,884 lines vendored, 3,509 written here.**
+
+| | |
+|---|---|
+| **Vendored** | The kernel — a Python port of [Cordis][cordis] by [geohotstan](https://github.com/geohotstan/cordis-py), MIT. 4,298 lines of source and 5,586 of tests. We did not design it and did not write it. |
+| **A finding** | Three MIT Python ports of Cordis exist. **Two are broken.** In one, `ctx.effect()` — the central API — raises `'Symbol' object is not callable`, and its own 59 tests never touch it. Another redesigned the API around typed tokens, which forfeits the reason to port Cordis at all. We could not find anyone who had published this. |
+| **The suite that proves it** | `test_conformance.py` — nine assertions traced to `vendor/cordis/src/*.ts` rather than to any implementation. It scored the three ports 6/9, 5/9 and n/a, and it is the gate for taking any upstream change. |
+| **A fix** | The surviving port passed the dispatch carrier as a leading positional argument to every listener, where Cordis binds it as `this`. That silently changes the arity of every listener, so any plugin written from dsh's documentation breaks. Now ambient, via a `ContextVar`. |
+| **One original layer** | `binding.py` — 346 lines letting your components stay plain classes with no framework import. The genuinely new part, and the reason to take this over writing your own port. |
+| **A tool pipeline** | `services/tools.py` — our code, DeepSeek's design, ported stage for stage. |
+| **Carried forward** | `signals.py` and the supervision strategies come from `signalpy-kernel`, this project's retired predecessor. |
+
+**Why vendor rather than depend?** The port we started from is pre-1.0, has no
+PyPI release, and one author. That is a fork, not a dependency, and pretending
+otherwise would put your build on someone's weekend project.
+`src/plugkit/VENDORED.md` lists every change made to it.
+
+[cordis]: https://github.com/deepseek-ai/deepseek-harness/tree/master/vendor/cordis
 
 ## Development
 
 ```bash
-uv run pytest src/plugkit/tests -q          # 232 passed, 3 skipped, 2 xfailed
+uv run pytest src/plugkit/tests -q          # 235 passed, 3 skipped, 2 xfailed
 uv run --with pyright pytest src/plugkit/tests/test_typing.py   # typing checks
 ```
 

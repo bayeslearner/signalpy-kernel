@@ -1,7 +1,22 @@
 ---
 title: "plugkit"
-subtitle: "A plugin kernel for Python. Every registration returns its undo, and something owns it."
+subtitle: "The Python port of Cordis that actually works, plus a binding layer that keeps your components plain."
 ---
+
+::: {.callout-note}
+## Mostly not our work, and it says so
+
+About three quarters of plugkit is a vendored port of
+[Cordis](https://github.com/deepseek-ai/deepseek-harness), the plugin framework
+underneath DeepSeek Harness. We did not design it and did not write it.
+
+What this project adds: the finding that **two of the three public Python ports
+are broken**, the conformance suite that proves it, a fix to the third, and one
+original layer — `provide()`, which keeps your components plain classes with no
+framework import.
+
+See [Why plugkit exists](guide/00-why.qmd) and `src/plugkit/VENDORED.md`.
+:::
 
 ```bash
 pip install plugkit
@@ -17,8 +32,8 @@ class Greeter:                       # a plain class. imports nothing.
         return f"{self.prefix} {name}"
 
 root = Context()
-await root.plugin(provide(Database))
-await root.plugin(provide(Greeter, needs=["database"]))
+await root.plugin(provide(Database, "database"))
+await root.plugin(provide(Greeter, "greeter", needs=["database"]))
 root.greeter.hello("world")          # "hello world"
 ```
 

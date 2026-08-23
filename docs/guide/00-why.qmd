@@ -121,7 +121,7 @@ class Greeter:
 from plugkit import provide
 from services.greeter import Greeter
 
-greeter = provide(Greeter, needs=["database"], config={"prefix": "greeter.prefix"})
+greeter = provide(Greeter, "greeter", needs=["database"], config={"prefix": "greeter.prefix"})
 ```
 
 `Greeter` is testable as `Greeter(database=FakeDB(), prefix="hi")`. No kernel, no

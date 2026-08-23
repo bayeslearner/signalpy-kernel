@@ -71,8 +71,8 @@ def test_snake_case_default_names():
 
 async def test_provide_registers_and_injects():
     root = Context()
-    await root.plugin(provide(Database))
-    await root.plugin(provide(Greeter, needs=["database"]))
+    await root.plugin(provide(Database, "database"))
+    await root.plugin(provide(Greeter, "greeter", needs=["database"]))
     await settle()
 
     assert root.greeter.hello("world") == "hello world"
@@ -85,25 +85,25 @@ async def test_needs_dict_renames_the_kwarg():
             self.db = db
 
     root = Context()
-    await root.plugin(provide(Database))
-    await root.plugin(provide(Wrapper, as_="wrapper", needs={"db": "database"}))
+    await root.plugin(provide(Database, "database"))
+    await root.plugin(provide(Wrapper, "wrapper", needs={"db": "database"}))
     await settle()
     assert root.wrapper.db is not None
 
 
 async def test_needs_protocol_derives_the_inject_list():
     """One Protocol drives both the runtime wiring and the type checker."""
-    plugin = provide(Greeter, needs=GreeterDeps)
+    plugin = provide(Greeter, "greeter", needs=GreeterDeps)
     assert plugin["inject"] == ["cache", "database"]
 
 
 async def test_binding_waits_for_its_dependency():
     root = Context()
-    await root.plugin(provide(Greeter, needs=["database"]))
+    await root.plugin(provide(Greeter, "greeter", needs=["database"]))
     await settle()
     assert getattr(root, "greeter", None) is None, "activated without its dependency"
 
-    await root.plugin(provide(Database))
+    await root.plugin(provide(Database, "database"))
     await settle()
     assert root.greeter.hello("x") == "hello x"
 
@@ -111,7 +111,7 @@ async def test_binding_waits_for_its_dependency():
 async def test_config_reaches_the_constructor():
     root = Context()
     await root.plugin(ConfigService, {"dict": {"db": {"dsn": "pg://prod"}}})
-    await root.plugin(provide(Database, config={"dsn": ("db.dsn", "sqlite://")}))
+    await root.plugin(provide(Database, "database", config={"dsn": ("db.dsn", "sqlite://")}))
     await settle()
     assert root.database.dsn == "pg://prod"
 
@@ -119,14 +119,14 @@ async def test_config_reaches_the_constructor():
 async def test_config_default_when_key_is_absent():
     root = Context()
     await root.plugin(ConfigService)
-    await root.plugin(provide(Database, config={"dsn": ("db.dsn", "sqlite://")}))
+    await root.plugin(provide(Database, "database", config={"dsn": ("db.dsn", "sqlite://")}))
     await settle()
     assert root.database.dsn == "sqlite://"
 
 
 async def test_close_runs_on_unload():
     root = Context()
-    fiber = await root.plugin(provide(Database))
+    fiber = await root.plugin(provide(Database, "database"))
     await settle()
     component = root.database
     assert component.closed is False
@@ -138,7 +138,7 @@ async def test_close_runs_on_unload():
 
 async def test_close_false_skips_teardown():
     root = Context()
-    fiber = await root.plugin(provide(Database, close=False))
+    fiber = await root.plugin(provide(Database, "database", close=False))
     await settle()
     component = root.database
     await fiber.dispose()
@@ -155,7 +155,7 @@ async def test_named_close_method():
             self.stopped = True
 
     root = Context()
-    fiber = await root.plugin(provide(Server, close="shutdown"))
+    fiber = await root.plugin(provide(Server, "server", close="shutdown"))
     await settle()
     server = root.server
     await fiber.dispose()
@@ -169,7 +169,7 @@ async def test_bad_close_name_is_loud():
 
     root = Context()
     with pytest.raises(AttributeError, match="nope"):
-        await root.plugin(provide(Thing, close="nope"))
+        await root.plugin(provide(Thing, "thing", close="nope"))
 
 
 async def test_config_change_rebuilds_the_component():
@@ -177,7 +177,7 @@ async def test_config_change_rebuilds_the_component():
     root = Context()
     await root.plugin(ReactiveService)
     await root.plugin(ConfigService, {"dict": {"db": {"dsn": "one://"}}})
-    await root.plugin(provide(Database, config={"dsn": ("db.dsn", "sqlite://")}))
+    await root.plugin(provide(Database, "database", config={"dsn": ("db.dsn", "sqlite://")}))
     await settle()
 
     first = root.database
@@ -195,7 +195,7 @@ async def test_binding_works_without_reactive_mounted():
     """Reacting to config is opt-in; a minimal composition must still boot."""
     root = Context()
     await root.plugin(ConfigService, {"dict": {"db": {"dsn": "one://"}}})
-    await root.plugin(provide(Database, config={"dsn": ("db.dsn", "sqlite://")}))
+    await root.plugin(provide(Database, "database", config={"dsn": ("db.dsn", "sqlite://")}))
     await settle()
     assert root.database.dsn == "one://"
 
@@ -206,7 +206,7 @@ async def test_binding_works_without_reactive_mounted():
 
 async def test_bad_needs_type_is_loud():
     with pytest.raises(TypeError, match="must be a list"):
-        provide(Greeter, needs=42)
+        provide(Greeter, "greeter", needs=42)
 
 
 # ── the @plugin decorator ────────────────────────────────────────────────
@@ -223,7 +223,7 @@ async def test_plugin_decorator_carries_inject():
     assert uses_db["name"] == "uses_db"
 
     root = Context()
-    await root.plugin(provide(Database))
+    await root.plugin(provide(Database, "database"))
     await root.plugin(uses_db)
     await settle()
 
@@ -267,8 +267,8 @@ async def test_a_rival_construction_policy_needs_no_kernel_change():
     from plugkit.examples.alternative_binding import provide_factory
 
     root = Context()
-    await root.plugin(provide(Database))
-    await root.plugin(provide_factory(Greeter, as_="greeter", needs=["database"]))
+    await root.plugin(provide(Database, "database"))
+    await root.plugin(provide_factory(Greeter, "greeter", needs=["database"]))
     await settle()
 
     first = root.greeter()
@@ -281,7 +281,7 @@ async def test_a_factory_policy_still_unwinds_with_its_fiber():
     from plugkit.examples.alternative_binding import provide_factory
 
     root = Context()
-    fiber = await root.plugin(provide_factory(Database, as_="db"))
+    fiber = await root.plugin(provide_factory(Database, "db"))
     await settle()
     made = [root.db(), root.db()]
     assert not any(d.closed for d in made)
@@ -289,3 +289,34 @@ async def test_a_factory_policy_still_unwinds_with_its_fiber():
     await fiber.dispose()
     await settle()
     assert all(d.closed for d in made), "instances outlived the plugin that made them"
+
+
+async def test_forgetting_the_service_name_is_a_hard_error():
+    """No default name: it read as type-based injection and broke silently.
+
+    Python raises before the body runs, which is the point — pyright catches it
+    at author time rather than leaving a plugin that never activates.
+    """
+    with pytest.raises(TypeError, match="required positional argument"):
+        provide(Database)
+
+
+async def test_a_bad_service_name_says_what_to_pass():
+    """The body's own check covers what Python's cannot: wrong type, or empty."""
+    with pytest.raises(TypeError, match='provide\\(Database, "database"\\)'):
+        provide(Database, "")
+    with pytest.raises(TypeError, match="needs a service name"):
+        provide(Database, 42)
+
+
+async def test_the_service_name_is_the_link_not_the_class():
+    """Renaming the class must not change the wiring."""
+
+    class PostgresDatabase(Database):
+        pass
+
+    root = Context()
+    await root.plugin(provide(PostgresDatabase, "database"))
+    await root.plugin(provide(Greeter, "greeter", needs=["database"]))
+    await settle()
+    assert root.greeter.hello("x") == "hello x"

@@ -48,7 +48,7 @@ Now `greeter` does not run when you mount it. It runs when a service named
 async def main():
     root = Context()
     await root.plugin(greeter)      # nothing printed: no database yet
-    await root.plugin(provide(Database))
+    await root.plugin(provide(Database, "database"))
     # greeter runs here
 ```
 
@@ -159,7 +159,7 @@ async def main():
     await root.plugin(feature)
     print(log)                      # []  <- gated on the database
 
-    db = await root.plugin(provide(Database))
+    db = await root.plugin(provide(Database, "database"))
     await asyncio.sleep(0)
     print(log)                      # ['feature started', 'acquired 1', 'acquired 2']
 

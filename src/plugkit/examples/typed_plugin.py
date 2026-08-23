@@ -84,6 +84,7 @@ class ReporterDeps(Protocol):
 
 reporter = provide(
     Reporter,
+    "reporter",                             # the service name — always explicit
     needs=ReporterDeps,                     # -> inject = ["database"]
     config={"prefix": ("report.prefix", "report")},
 )

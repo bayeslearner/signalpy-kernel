@@ -25,8 +25,8 @@ Your components stay plain objects. The class below imports nothing from here:
 
     async def main():
         root = Context()
-        await root.plugin(provide(Database))
-        await root.plugin(provide(Greeter, needs=["database"]))
+        await root.plugin(provide(Database, "database"))
+        await root.plugin(provide(Greeter, "greeter", needs=["database"]))
         print(root.greeter.hello("world"))
 
 `Service` (exported below) is for plugins that *are* kernel surface — the shipped
