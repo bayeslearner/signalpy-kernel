@@ -57,7 +57,7 @@ from .cordis import (  # noqa: F401
 )
 from .cordis.events import AggregateError, EventsService, is_bailed  # noqa: F401
 from .cordis.utils import this_  # noqa: F401
-from .binding import bind, plugin, provide, snake_case  # noqa: F401
+from .binding import CONTEXT_MEMBERS, bind, plugin, provide, snake_case  # noqa: F401
 from .signals import Computed, Effect, Signal, batch, is_stale  # noqa: F401
 
 # The shipped services. They have no privileged status — each is an ordinary
@@ -79,38 +79,32 @@ from .services.tools import (  # noqa: F401
 )
 
 __all__ = [
-    # kernel
+    # ── the kernel ────────────────────────────────────────────────────
     "Context",
     "Service",
     "Fiber",
     "FiberState",
     "Inject",
-    "Impl",
-    # services mixed onto every context
-    "EventsService",
-    "ReflectService",
-    "RegistryService",
-    "LoggerService",
-    "Logger",
-    # composition
-    "Loader",
-    # bindings — plain classes become services without importing the kernel
+    "this_",
+    # ── binding: plain classes become services ────────────────────────
     "provide",
     "plugin",
     "bind",
     "snake_case",
-    # signals — a standalone library, no kernel involved
+    "CONTEXT_MEMBERS",
+    # ── signals: a standalone library, no kernel involved ─────────────
     "Signal",
     "Computed",
     "Effect",
     "batch",
     "is_stale",
-    # shipped services — ordinary plugins, mount what you need
+    # ── shipped services: ordinary plugins, mount what you need ───────
+    "ConfigService",
     "ReactiveService",
     "SupervisorService",
-    "Policy",
-    "ConfigService",
     "ToolsService",
+    "timeout_policy",
+    # ── tool pipeline values ──────────────────────────────────────────
     "Tool",
     "ToolExecution",
     "ToolResult",
@@ -119,16 +113,16 @@ __all__ = [
     "Ask",
     "Accept",
     "Block",
-    "timeout_policy",
-    # dispatch
-    "this_",
-    "is_bailed",
-    # errors
+    # ── errors you may catch ──────────────────────────────────────────
     "CordisError",
     "ValidationError",
     "AggregateError",
-    # utilities
-    "DisposableList",
 ]
+
+# Internal machinery. Importable from its module when you genuinely need it —
+# `plugkit.cordis.EventsService` and so on — but not part of the surface a user
+# is expected to touch, so not re-exported here:
+#   EventsService  RegistryService  ReflectService  LoggerService  Logger
+#   Impl  DisposableList  is_bailed  Policy
 
 __version__ = "0.1.0"

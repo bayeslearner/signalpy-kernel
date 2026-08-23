@@ -334,3 +334,18 @@ def test_the_public_surface_is_importable():
         assert hasattr(plugkit, name), f"{name} is in __all__ but not importable"
 
     from plugkit import Context, plugin, provide, bind, snake_case  # noqa: F401
+
+
+def test_every_export_is_exercised_somewhere():
+    """An export with no test is either public surface that needs one, or not
+    public and should not be exported. This keeps that decision honest."""
+    import pathlib
+    import re
+
+    import plugkit
+
+    tests = " ".join(
+        p.read_text() for p in pathlib.Path(__file__).parent.rglob("*.py")
+    )
+    untested = [n for n in plugkit.__all__ if not re.search(rf"\b{re.escape(n)}\b", tests)]
+    assert not untested, f"exported but never used in a test: {untested}"

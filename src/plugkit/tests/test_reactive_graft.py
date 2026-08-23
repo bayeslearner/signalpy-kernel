@@ -115,3 +115,27 @@ async def test_batch_coalesces_writes():
         a.set(10)
         b.set(20)
     assert runs == [3, 30], "two writes in a batch produced more than one flush"
+
+
+def test_the_signals_library_stands_alone():
+    """signals.py has no kernel import. Usable in a plain script."""
+    from plugkit import Computed, Effect, Signal, batch, is_stale
+
+    a, b = Signal(1), Signal(2)
+    total = Computed(lambda: a.get() + b.get())
+    assert total.get() == 3
+
+    seen = []
+    watcher = Effect(lambda: seen.append(a.get()))
+    assert seen == [1]
+
+    with batch():
+        a.set(10)
+        b.set(20)
+    assert total.get() == 30
+    assert seen == [1, 10]
+
+    watcher.dispose()
+    a.set(99)
+    assert seen == [1, 10], "a disposed Effect still ran"
+    assert is_stale() is False

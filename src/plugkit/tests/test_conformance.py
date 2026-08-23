@@ -241,3 +241,48 @@ async def test_a_waterfall_listener_can_wrap_and_veto():
 
     assert root.waterfall("gate", "good", lambda: "allowed") == "allowed"
     assert root.waterfall("gate", "bad", lambda: "allowed") == "denied"
+
+
+# ── the remaining public surface ─────────────────────────────────────────
+
+
+async def test_errors_are_catchable_by_their_exported_types():
+    from plugkit import CordisError, ValidationError
+
+    assert issubclass(CordisError, Exception)
+    assert issubclass(ValidationError, Exception)
+
+
+async def test_parallel_collects_listener_failures():
+    """`ctx.parallel` awaits every listener and aggregates their errors."""
+    from plugkit import AggregateError
+
+    root = Context()
+
+    async def ok():
+        return 1
+
+    async def bad():
+        raise RuntimeError("listener failed")
+
+    root.on("go", ok)
+    root.on("go", bad)
+    with pytest.raises(AggregateError):
+        await root.parallel("go")
+
+
+async def test_inject_normalises_list_and_dict_forms():
+    from plugkit import Inject
+
+    assert Inject.resolve(["a", "b"]) == {"a": None, "b": None}
+    assert Inject.resolve({"a": 1}) == {"a": 1}
+
+
+async def test_plugin_returns_a_fiber():
+    """`Fiber` is exported because it is the type `plugin()` hands back."""
+    from plugkit import Fiber
+
+    root = Context()
+    fiber = root.plugin(lambda ctx, config=None: None)
+    assert isinstance(fiber, Fiber)
+    assert fiber.state in tuple(FiberState)

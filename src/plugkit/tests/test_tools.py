@@ -360,3 +360,46 @@ async def test_a_policy_plugin_needs_no_change_to_any_tool():
     stopped = await root.tools.execute("delete", {"what": "/"})
     assert not stopped.ok
     assert (await root.tools.execute("add", {"a": 1, "b": 1})).ok
+
+
+# ── the values a listener receives ───────────────────────────────────────
+
+
+async def test_listeners_receive_a_frozen_ToolExecution():
+    """`ToolExecution` is exported because listeners are handed one."""
+    from plugkit import ToolExecution
+
+    seen = []
+
+    def observer(ctx, config=None):
+        ctx.on("tools/result", lambda execution, result: seen.append(execution))
+
+    observer.inject = ["tools"]
+    root = await boot(register_plugin(Adder()), observer)
+    await root.tools.execute("add", {"a": 1, "b": 2}, caller="me")
+
+    execution = seen[0]
+    assert isinstance(execution, ToolExecution)
+    assert execution.name == "add"
+    assert execution.arguments == {"a": 1, "b": 2}
+    assert execution.caller == "me"
+    assert execution.id
+
+    with pytest.raises(Exception):
+        execution.name = "changed"      # frozen dataclass
+
+
+async def test_execute_returns_a_ToolResult():
+    """`ToolResult` is exported because `execute()` returns one."""
+    from plugkit import ToolResult
+
+    root = await boot(register_plugin(Adder()))
+
+    ok = await root.tools.execute("add", {"a": 2, "b": 3})
+    assert isinstance(ok, ToolResult)
+    assert (ok.ok, ok.value, ok.error) == (True, 5, None)
+
+    bad = await root.tools.execute("missing")
+    assert isinstance(bad, ToolResult)
+    assert bad.ok is False
+    assert bad.error["code"] == "UNKNOWN_TOOL"
