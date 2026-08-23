@@ -42,18 +42,49 @@ unload:
   listener gone=True
 ```
 
-**Three divergences from Cordis**, all of which matter:
+### Its kernel, measured against Cordis
 
-| | Cordis | havocio |
+`dsh_py/core/` uses Cordis's filenames. The substance is about a quarter of it,
+and the difference is concentrated in the file that matters most.
+
+| | Cordis TS | plugkit | havocio |
+|---|---|---|---|
+| `fiber` | 754 | 652 | **114** |
+| `reflect` | 418 | 216 | 47 |
+| `registry` | 337 | 158 | 56 |
+| `events` | 352 | 189 | 202 |
+| `context` | 146 | 229 | 335 |
+| traceable layer | in `reflect` | 251 | none |
+| loader / HMR | 1,749 | 1,247 | none |
+
+Behaviour, each run rather than inferred:
+
+| Cordis property | havocio | |
 |---|---|---|
-| Unmet dependency | fiber waits in `PENDING` | **raises** `RuntimeError: 插件依赖了尚未可用的服务` unless `lazy=True` |
-| Fiber states | 6 — `PENDING LOADING ACTIVE FAILED UNLOADING DISPOSED` | 4 — no `LOADING`, no **`FAILED`** |
-| `effect()` | takes an *execute* function that runs and returns a disposer; may be a generator yielding several | takes the disposer directly |
+| a plugin waits for its dependencies | ✅ | via `lazy=True`; the default raises |
+| effects owned by the **caller's** fiber | ✅ | verified — better than the missing traceable layer suggests |
+| `isolate()` scopes a service name | ✅ | verified |
+| unload is total, disposers in reverse | ✅ | verified |
+| **async plugin bodies** | ❌ | `coroutine 'slow' was never awaited`, body never ran |
+| **provider swap rebuilds dependents** | ❌ | dispose the provider, mount a replacement: the dependent does not re-run |
+| a raising plugin body is contained | ❌ | `context.py:287` calls `apply_fn(self, config)` in a `try/finally` that only pops a stack |
+| `FAILED` state | ❌ | four states; nowhere to hang supervision |
+| generator effects yielding several disposers | ❌ | `effect()` takes the disposer itself |
 
-Waiting being opt-in inverts the model: mount order matters again by default,
-which is the thing `inject` exists to remove. No `FAILED` state means no place to
-hang supervision. And `effect(disposer)` cannot express setup-that-can-fail or an
-effect that yields several disposers.
+The two failures in bold are decisive for an agent runtime.
+
+**Async.** `plugin()` is synchronous. An `async def` body returns a coroutine
+that is discarded — the identical failure mode as iPOPO's `@Validate`. An agent
+plugin that opens an HTTP session or connects to a database during startup cannot
+be written.
+
+**No epoch.** Dependency waiting is a `_pending_plugins` queue drained when
+`provide()` is called. It is one-directional: it wakes plugins when a dependency
+appears and does nothing when one goes away. So a dependent keeps a stale
+reference across an implementation swap, which is the hazard the epoch exists to
+prevent. `finalize_pending()` also *raises* if anything is still pending, so
+`PENDING` is an error state rather than a resting one — a plugin whose optional
+dependency never arrives is a failure rather than a feature left unmounted.
 
 **Coverage:** roughly 35 of dsh's ~47 service concepts, plus 19 plugins including
 `tool_bash`, `tool_fs`, `tool_todo`, `guard_timeout`, `guard_repeat_tool`,
@@ -86,11 +117,18 @@ That is true of the *established* ecosystem and false of the frontier: two
 unknown repositories have it, one of them faithfully enough to pass the
 behavioural checks above.
 
-**It does not change the decision to keep plugkit's kernel.** havocio's kernel is
-Cordis-*inspired*; plugkit's is a Cordis *port* with a conformance suite tested
-against the TypeScript. The three divergences above are exactly what such a suite
-is for, and none of them would have been visible from the README.
+**It does not change the decision to keep plugkit's kernel.** havocio's is
+Cordis-*inspired*: correct on ownership and scoping, absent on async, epoch and
+error containment. Those three are not additions to it — the first is a rewrite
+of `plugin()` and everything below it. None of the nine rows above would have
+been visible from its README, which is what a conformance suite is for.
 
-**It changes what to build next.** Re-deriving 35 services that already exist
-under MIT would be waste. The service layer is where havocio's work is worth
-mining; the kernel is where plugkit's is.
+**It changes what to build next.** Re-deriving ~35 MIT-licensed services would be
+waste. The split that plays to each side: plugkit's kernel, havocio's service
+implementations as the reference, and only the services a real application uses.
+For prismi3 that is roughly eight — agent loop, llm adapter, session persistence,
+tools, skills, compaction, subagents, approval — not forty-seven.
+
+**A courtesy worth extending.** havocio pushed 34,000 lines of this three days
+before the survey and has no users. Anyone mining the work should say so to them
+first.
