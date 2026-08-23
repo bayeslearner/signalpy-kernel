@@ -1,6 +1,7 @@
 ---
 spec_id: 02-platform-essentials
-status: SHIPPED
+status: CLOSED
+closed_as: SHIPPED
 since: 2026-04-22
 until: null
 epic: kernel
@@ -65,3 +66,9 @@ in architecture docs but missing from implementation.
 **2026-04-22** — All tasks completed. 50 tests passing. Implemented AuthProvider
 and WorkspaceProvider. Fixed HTML docs. Created CLAUDE.md. Added __init__.py
 re-exports. Example still boots 10 components successfully.
+
+## Disposition (2026-08-23)
+
+CLOSED / SHIPPED — all eight tasks done, shipped in `signalpy-kernel` 0.4.0
+[src:src/signalpy/providers/]. Frontmatter migrated from the retired
+`status: SHIPPED` schema to `status: CLOSED` + `closed_as: SHIPPED`.

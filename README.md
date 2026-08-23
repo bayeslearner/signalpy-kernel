@@ -1,167 +1,173 @@
-# SignalPy Kernel
+# plugkit
 
-[![PyPI](https://img.shields.io/pypi/v/signalpy-kernel.svg)](https://pypi.org/project/signalpy-kernel/)
-[![Python](https://img.shields.io/pypi/pyversions/signalpy-kernel.svg)](https://pypi.org/project/signalpy-kernel/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Docs](https://img.shields.io/badge/docs-bayeslearner.github.io-blue)](https://bayeslearner.github.io/signalpy-kernel/)
-
-A Signal-based reactive component microkernel for Python backend services.
-
-The kernel is three reactive primitives — **Signal**, **Computed**, **Effect** — plus
-component wiring. Everything else (config, logging, credentials, storage, REST,
-MCP, CLI) is just components built on top.
-
-> **Disclosure.** Built with Claude's help. The author hopes it lands somewhere
-> between "trash" and "god code" — and is actively asking Python folks who
-> know reactive systems, DI containers, or microkernels to tell them which
-> mistakes were made. Reviews welcome via [Issues](https://github.com/bayeslearner/signalpy-kernel/issues)
-> or [Discussions](https://github.com/bayeslearner/signalpy-kernel/discussions).
-
-## Install
+**A plugin kernel for Python. Every registration returns its undo, and something owns it.**
 
 ```bash
-pip install signalpy-kernel             # core kernel only (zero deps)
-pip install "signalpy-kernel[all]"      # + providers + REST/CLI + tracing
+pip install plugkit
 ```
-
-## 60-second example
 
 ```python
 import asyncio
-from pydantic import BaseModel
-from signalpy.kernel import (
-    Kernel, component, provides, requires, runnable, lifecycle, computed, effect,
-)
-from signalpy.kernel.contracts import IConfig
-from signalpy.providers.config import ConfigProvider
-from signalpy.providers.logging_provider import LoggingProvider
+from plugkit import Context, provide
 
-
-class GreetParams(BaseModel):
-    name: str = "world"
-
-
-@component("greeter", version="1.0")
-@provides("IGreeter")
-@requires(config=IConfig)
+# Your component. A plain class. It imports nothing from plugkit.
 class Greeter:
+    def __init__(self, database, prefix="hello"):
+        self.database = database
+        self.prefix = prefix
 
-    @lifecycle.activate
-    def activate(self):
-        pass  # self.rt.config, self.rt.logger, etc. now available
-
-    @computed
-    def prefix(self):
-        # Cached. Auto-recomputes when config changes.
-        return self.rt.config.get("greeter.prefix", "Hello")
-
-    @effect
-    def on_prefix_change(self):
-        # Auto-tracks deps. Re-runs when they change.
-        print(f"prefix is now: {self.rt.config.get('greeter.prefix')}")
-
-    @runnable("greet", params=GreetParams, description="Greet someone by name")
-    async def greet(self, params):
-        return {"message": f"{self.prefix()}, {params.name}!"}
+    def hello(self, name):
+        return f"{self.prefix} {name}"
 
 
-# Consumer uses @requires — direct method call, no bus.invoke
-@component("app", version="1.0")
-@requires(greeter="IGreeter")
-class App:
-    async def run(self):
-        result = await self.rt.greeter.greet(GreetParams(name="Alice"))
-        print(result)  # {"message": "Hello, Alice!"}
+class Database:
+    def __init__(self, dsn="sqlite://"):
+        self.dsn = dsn
+
+    def close(self):
+        print("database closed")
 
 
 async def main():
-    kernel = Kernel()
-    kernel.discover([ConfigProvider, LoggingProvider, Greeter, App])
-    await kernel.boot()
+    root = Context()
+    await root.plugin(provide(Database))
+    await root.plugin(provide(Greeter, needs=["database"]))
 
-    # Change config — the @effect re-runs automatically.
-    kernel.registry.require("IConfig").set("greeter.prefix", "Howdy")
-
-    await kernel.shutdown()
-
+    print(root.greeter.hello("world"))     # hello world
 
 asyncio.run(main())
 ```
 
-`@runnable` declares the operation schema. Transport adapters (REST, MCP, CLI)
-discover schemas via `kernel.runnables()` and call `schema.handler` directly.
-Components never know which transport serves them.
+## The one idea
 
-## What makes it different
+Here is a bug that is not a bug. A component adds a route to a shared server:
 
-- **Reactivity is the foundation, not a layer on top.** Every injected service
-  is a `Signal`. Reading `self.rt.config` inside an `@effect` or `@computed`
-  is a tracked read — when config changes, the effect re-runs automatically.
-  No manual callbacks, no `@on_change`, no re-injection hacks.
-
-- **11 decorators total.** `@component`, `@provides`, `@requires`, `@computed`,
-  `@effect`, `@lifecycle.*`, `@runnable`, `@subscribe`, `@kind`, `@skill`,
-  `@prop`. That's the whole API surface.
-
-- **Two-axis architecture.** Axis 1 (the kernel) is irreplaceable mechanism: ~3,800
-  LOC across 9 files, zero required dependencies. Axis 2 is replaceable vocabulary:
-  config, logging, credentials, storage, REST/MCP/CLI transports — all just
-  components. The kernel is small enough to read in one sitting.
-
-- **Same `@runnable` → multiple transports.** Transport adapters discover
-  `@runnable` schemas and expose them as REST endpoints, MCP tools, or CLI
-  commands. Per-runnable `transports=[]` controls visibility. Auth requirements
-  are declared on the schema and enforced by each consumer.
-
-## Documentation
-
-The full guided tour is at **<https://bayeslearner.github.io/signalpy-kernel/>**:
-
-- **Tutorials** — first component → give-and-take → dynamic services → runnables → gateway → auth → building a provider
-- **Concepts** — architecture, reactivity by example, line-by-line annotated reactive engine, threading model, deployment scales
-- **Patterns** — reactive-intent recipes (`batch`, `is_stale`, `cancel_on_supersede`, cross-thread writes, mutate-in-place, first-run, cleanup), secret rotation, A/B testing, multi-tenant, hot code update, more
-- **Reference** — traits (L0–L3), all 11 decorators, contracts, kernel API
-
-## Project layout
-
-```
-src/signalpy/
-├── kernel/                  Axis 1 — the irreplaceable core (~3,800 LOC, 9 files)
-│   ├── reactive.py            Signal, Computed, Effect, batch
-│   ├── component.py           11 decorators + metadata
-│   ├── runtime.py             ReactiveRuntime: Signal-backed injection
-│   ├── registry.py            ServiceRegistry: provide/require + ref counting
-│   ├── bus.py                 Event bus: publish / subscribe
-│   ├── lifecycle_manager.py   Dependency-ordered activation, effect lifecycle
-│   ├── traits.py              L0–L3 trait system
-│   └── contracts.py           Protocol interfaces (IConfig, ILogger, IStorage, …)
-│
-├── providers/               Axis 2 — platform components (config, logging,
-│                            credentials, storage, auth, tracing, gateway, …)
-├── adapters/                Axis 2 — transport adapters (REST/FastAPI, MCP, CLI/Click)
-├── examples/                Progressive examples 01–07
-└── tests/                   341 tests
+```python
+def admin_api(ctx, config=None):
+    ctx.server.add_route("/admin", handle)
 ```
 
-## Constitution (the non-negotiable rules)
+Unload it. The route stays — nothing recorded who added it. The component can
+remove it by hand, and will get that right today and wrong in six months when a
+second route is added and only one list gets updated.
 
-1. Everything is a component. No privileged subsystems.
-2. Components give and take. No globals, singletons, or ambient state.
-3. The kernel has zero business logic.
-4. Transport is an adapter, never a core concern.
-5. Distribution can be transparent — contracts hide location.
-6. Apps are deployment units, components are composition units.
-7. Lifecycle is explicit and managed.
-8. Every API is transport-agnostic.
-9. The kernel is small. Readable in one sitting.
+That is not a missing feature, it is a missing invariant. So plugkit has one:
 
-## Inspiration
+```python
+def admin_api(ctx, config=None):
+    return ctx.server.add_route("/admin", handle)     # returns its undo
+admin_api.inject = ["server"]
+```
 
-- **Vue 3 / Preact Signals / SolidJS** — the Signal/Computed/Effect reactive model
-- **iPOPO** — OSGi-style component lifecycle for Python
-- **Dapr** — building blocks as pluggable components
-- **Engin / Uber Fx** — give-and-take dependency injection
+The **fiber** — the object representing this plugin's lifetime — holds that undo
+and calls it on unload. You do not write teardown, cannot forget it, and cannot
+get it half-right.
 
-## License
+Everything else falls out:
 
-MIT — see [LICENSE](LICENSE).
+- **Hot reload is free.** Reload is unload-then-apply. Unload is total, so reload is clean.
+- **Dependency-driven activation is free.** A plugin that can be stopped and started cleanly can be stopped when its database leaves and started when one appears.
+- **Swapping an implementation is free.** Replace a service and every plugin holding the old one is *rebuilt*, not patched — so nobody keeps a stale reference.
+
+## Four concepts
+
+| | |
+|---|---|
+| **Context** (`ctx`) | a lookup table of services, plus a scope |
+| **Service** | something registered under a name — `ctx.tools`, `ctx.config` |
+| **Plugin** | a callable that gets a context and registers things |
+| **Fiber** | one mounted plugin and everything it registered — the unit of lifetime |
+
+## Your components stay plain objects
+
+The most common complaint about DI frameworks is that adopting one means
+decorating your classes until they are no longer yours. `provide()` splits the
+component from its registration:
+
+```python
+# services/greeter.py — no framework import, no decorator, no base class
+class Greeter:
+    def __init__(self, database, prefix="hello"): ...
+```
+
+```python
+# app.py — the only file that knows a kernel exists
+greeter = provide(Greeter, needs=["database"], config={"prefix": "greeter.prefix"})
+```
+
+`Greeter(database=FakeDB(), prefix="hi")` works in a test with no kernel, no
+container, no fixtures. Declare dependencies as a Protocol and one declaration
+drives both the runtime wiring and your type checker:
+
+```python
+class GreeterDeps(Protocol):
+    database: Database
+    cache: Cache
+
+provide(Greeter, needs=GreeterDeps)     # inject == ["cache", "database"]
+```
+
+## What ships, and what is optional
+
+The kernel is the plugin machinery. Everything else is an ordinary plugin you
+mount or don't — there is no privileged "platform" tier.
+
+| | |
+|---|---|
+| `plugkit.cordis` | the kernel: context, fiber, effects, five dispatch modes, registry, loader, HMR |
+| `plugkit.binding` | `provide()` / `@plugin` — the wiring layer |
+| `plugkit.signals` | `Signal` / `Computed` / `Effect` — a standalone library, imports nothing |
+| `services.reactive` | `ctx.reactive` — signals bound to fiber lifetime |
+| `services.config` | `ctx.config` — YAML/dict/env/pydantic loading, one Signal per key |
+| `services.tools` | `ctx.tools` — a tool registry with a five-stage permission pipeline |
+| `services.supervision` | `ctx.supervisor` — OTP-style restart strategies |
+
+```bash
+pip install "plugkit[config]"    # dependency-injector, for env/pydantic config
+pip install "plugkit[hmr]"       # watchdog, for hot module replacement
+```
+
+Both degrade rather than fail: without `config`, `ConfigService` still loads
+dicts and YAML.
+
+## Where it comes from
+
+The kernel is a port of **Cordis**, the plugin framework underneath
+[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) — ~457,000
+lines of TypeScript, every part of it a Cordis plugin.
+
+That is practical, not decorative: because plugkit matches Cordis's semantics,
+dsh's documentation stays a working specification for anything built here. Its
+58-service catalogue, its five-stage tool pipeline, its filesystem policy events
+all describe a substrate that means the same thing in this kernel.
+
+`src/plugkit/VENDORED.md` records which of the three public ports was vendored,
+why, and every change made to it. `src/plugkit/tests/test_conformance.py` is the
+gate: nine assertions traced to `vendor/cordis/src/*.ts` rather than to this
+implementation.
+
+## Development
+
+```bash
+uv run pytest src/plugkit/tests -q          # 232 passed, 3 skipped, 2 xfailed
+uv run --with pyright pytest src/plugkit/tests/test_typing.py   # typing checks
+```
+
+- Architecture: [`docs/design/kernel-architecture.md`](docs/design/kernel-architecture.md)
+- What the project lives or dies on: [`docs/steering/pillars.md`](docs/steering/pillars.md)
+- Current sprint: the head of [`specs/`](specs/)
+
+## Replaces signalpy-kernel
+
+`signalpy-kernel` 0.4.0 was the previous design: a reactive component microkernel
+with twelve decorators. It remains on PyPI and is not going anywhere, but it is
+retired and receives no further work. plugkit is not a version of it — it is a
+different design of the same thing, and nothing carries over unchanged except the
+Signals library and the supervision strategies.
+
+The reason for the break: 1.0's components had to import the kernel, and nothing
+in it owned the undo of what a component registered. Those are the two things
+plugkit exists to fix. `specs/03-plugkit-kernel/spec.md` records the decisions;
+`docs/history/2026-08-v1-book/` preserves 1.0's documentation.
+
+MIT.

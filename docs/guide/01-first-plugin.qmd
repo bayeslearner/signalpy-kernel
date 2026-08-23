@@ -1,0 +1,225 @@
+---
+title: "Your first plugin"
+subtitle: "inject, effects, and watching unload be total"
+---
+
+## A plugin is a function
+
+That is the whole contract. It takes a context, it does things, and it returns a
+disposer if it has anything to undo.
+
+```python
+def hello(ctx, config=None):
+    print("hello")
+```
+
+Mount it:
+
+```python
+import asyncio
+from plugkit import Context
+
+async def main():
+    root = Context()
+    await root.plugin(hello)
+
+asyncio.run(main())
+```
+
+`Context()` is the root — the top of the tree. `root.plugin(fn)` mounts your
+function and returns a **fiber**, the object representing that mounted plugin's
+lifetime.
+
+## `inject` decides when it runs
+
+Real plugins need things. Say what, and the kernel handles the rest:
+
+```python
+def greeter(ctx, config=None):
+    print(ctx.database.query("SELECT 1"))
+
+greeter.inject = ["database"]
+```
+
+Now `greeter` does not run when you mount it. It runs when a service named
+`database` exists — which might be immediately, might be later, might be never.
+
+```python
+async def main():
+    root = Context()
+    await root.plugin(greeter)      # nothing printed: no database yet
+    await root.plugin(provide(Database))
+    # greeter runs here
+```
+
+::: {.callout-important}
+## You cannot read a service you did not inject
+
+```python
+def sneaky(ctx, config=None):
+    ctx.database.query("...")     # AttributeError: cannot get property
+                                  # "database" without inject
+```
+
+This is not pedantry. The kernel decides when to reload your plugin by tracking
+the identity of the fibers providing your injected services. A dependency it
+cannot see is a dependency whose replacement will not reload you — so you would
+be left holding a stale object with no way to find out. Refusing the read is
+what makes the guarantee trustworthy.
+:::
+
+**Ordering does not matter.** Mount `greeter` first or `Database` first; the
+result is the same. There is no boot sequence to get right, because activation is
+driven by availability rather than by position.
+
+## Effects: registration with an undo
+
+Anything your plugin sets up, it should be able to tear down. Rather than
+remembering to, you register it as an **effect**:
+
+```python
+def watcher(ctx, config=None):
+    def start():
+        handle = open_file_watcher("/tmp")
+        return handle.stop            # <- the undo
+    ctx.effect(start, "file-watcher")
+```
+
+`ctx.effect(fn, label)` calls `fn` immediately. Whatever `fn` returns is kept by
+your fiber as the undo. On unload, every undo runs — **in reverse order**, the
+same way a stack unwinds, so things are released in the opposite order they were
+acquired.
+
+For a single teardown you can skip the ceremony and just return it:
+
+```python
+def watcher(ctx, config=None):
+    handle = open_file_watcher("/tmp")
+    return handle.stop
+```
+
+## Listening to events
+
+`ctx.on` registers a listener. It is an effect, so it comes with its own undo:
+
+```python
+def logger_plugin(ctx, config=None):
+    ctx.on("user/created", lambda user: print(f"new user: {user}"))
+```
+
+You do not need to unregister it. When `logger_plugin` unloads, the listener goes
+with it. Not "should go" — goes, because the fiber holds the disposer and calls
+it.
+
+A listener's parameters are exactly the event's arguments. If you need to know
+*who* dispatched an event, `this_()` gives you the carrier:
+
+```python
+from plugkit import this_
+
+def audit(ctx, config=None):
+    ctx.on("internal/status", lambda fiber, old: print(fiber.name, old, this_()))
+```
+
+## Watch unload be total
+
+This is the part worth actually running, because reading about it is less
+convincing than watching it:
+
+```python
+import asyncio
+from plugkit import Context, provide
+
+log = []
+
+class Database:
+    def close(self):
+        log.append("database closed")
+
+
+def feature(ctx, config=None):
+    log.append("feature started")
+
+    def acquire(n):
+        def start():
+            log.append(f"acquired {n}")
+            return lambda: log.append(f"released {n}")
+        return start
+
+    ctx.effect(acquire(1))
+    ctx.effect(acquire(2))
+    ctx.on("ping", lambda: log.append("pong"))
+    return lambda: log.append("feature stopped")
+
+feature.inject = ["database"]
+
+
+async def main():
+    root = Context()
+    await root.plugin(feature)
+    print(log)                      # []  <- gated on the database
+
+    db = await root.plugin(provide(Database))
+    await asyncio.sleep(0)
+    print(log)                      # ['feature started', 'acquired 1', 'acquired 2']
+
+    root.emit("ping")
+    print(log[-1])                  # 'pong'
+
+    log.clear()
+    await db.dispose()              # take the database away
+    await asyncio.sleep(0)
+    print(log)                      # ['feature stopped', 'released 2', 'released 1',
+                                    #  'database closed']
+    root.emit("ping")
+    print(log[-1])                  # still 'database closed' — the listener is gone
+
+asyncio.run(main())
+```
+
+Three things happened that nobody wrote code for:
+
+1. Disposing the **database** unloaded the **feature**, because the feature
+   declared it.
+2. The feature's effects released in reverse order — 2 before 1.
+3. The feature's event listener stopped receiving events, without an
+   unregister call anywhere.
+
+## The six states
+
+A fiber is always in one of these. You rarely look, but knowing they exist makes
+the behaviour above stop feeling like magic:
+
+| State | Meaning |
+|---|---|
+| `PENDING` | mounted, waiting for an injected service |
+| `LOADING` | the plugin function is running |
+| `ACTIVE` | loaded, its services available to others |
+| `FAILED` | the plugin function raised |
+| `UNLOADING` | disposers are running |
+| `DISPOSED` | gone for good, cannot restart |
+
+```python
+from plugkit import FiberState
+print(fiber.state is FiberState.ACTIVE)
+```
+
+::: {.callout-warning}
+## `await root.plugin(p)` re-raises a startup error
+
+If your plugin function raises, awaiting the mount re-raises it. To observe a
+failure rather than propagate it, don't await — check the state:
+
+```python
+fiber = root.plugin(might_fail)     # no await
+await asyncio.sleep(0)
+assert fiber.state is FiberState.FAILED
+```
+
+That is also how [supervision](03-tools.qmd) sees failures.
+:::
+
+## Next
+
+[Plain components](02-popo-components.qmd) — how to keep your own classes free of
+all of this.

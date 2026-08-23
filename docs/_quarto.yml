@@ -3,124 +3,40 @@ project:
   output-dir: _site
 
 website:
-  title: "SignalPy Microkernel"
-  site-url: "https://bayeslearner.github.io/signalpy-kernel/"
-  repo-url: "https://github.com/bayeslearner/signalpy-kernel"
+  title: "plugkit"
+  site-url: "https://bayeslearner.github.io/plugkit/"
+  repo-url: "https://github.com/bayeslearner/plugkit"
   repo-actions: [edit, issue]
   navbar:
     left:
-      - text: "Tutorials"
+      - text: "Guide"
         menu:
-          - text: "0. Layer Rules & Decision Guide"
-            href: guide/00-layer-rules.qmd
-          - text: "1. First Component"
-            href: guide/01-first-component.qmd
-          - text: "2. Give and Take"
-            href: guide/02-give-and-take.qmd
-          - text: "3. Dynamic Services & Reactivity"
-            href: guide/03-dynamic-services.qmd
-          - text: "4. Runnables & the Bus"
-            href: guide/04-runnables-and-api.qmd
-          - text: "5. Gateway & Transports"
-            href: guide/05-gateway-and-transports.qmd
-          - text: "6. Auth & Policy"
-            href: guide/06-auth-and-policy.qmd
-          - text: "7. Building a Provider"
-            href: guide/07-building-a-provider.qmd
-          - text: "---"
-          - text: "Production Patterns"
-            href: patterns/index.qmd
-      - text: "Concepts"
+          - text: "Why plugkit exists"
+            href: guide/00-why.qmd
+          - text: "Your first plugin"
+            href: guide/01-first-plugin.qmd
+          - text: "Plain components"
+            href: guide/02-popo-components.qmd
+          - text: "Tools and permission"
+            href: guide/03-tools.qmd
+      - text: "Design"
         menu:
-          - text: "Architecture & Constitution"
-            href: concepts/architecture.qmd
-          - text: "Reactivity by Example"
-            href: concepts/reactivity-by-example.qmd
-          - text: "Reactive Engine Internals"
-            href: concepts/reactive-internals.qmd
-          - text: "Threading & Async Model"
-            href: concepts/threading-model.qmd
-          - text: "Supervision & Reliability"
-            href: concepts/supervision.qmd
-          - text: "Bridging External Systems"
-            href: concepts/bridging.qmd
-          - text: "Deployment Scales"
-            href: concepts/deployment.qmd
-          - text: "---"
-          - text: "Source Walkthrough (all 9 files)"
-            href: concepts/kernel-reading-guide.qmd
-      - text: "Patterns"
+          - text: "Kernel architecture"
+            href: design/kernel-architecture.md
+          - text: "Pillars"
+            href: steering/pillars.md
+      - text: "History"
         menu:
-          - text: "Overview"
-            href: patterns/index.qmd
-          - text: "Reactive Intent vs Default"
-            href: patterns/reactive-intent.qmd
-          - text: "Secret Rotation"
-            href: patterns/secret-rotation.qmd
-          - text: "A/B Testing"
-            href: patterns/ab-testing.qmd
-          - text: "Multi-Tenant Isolation"
-            href: patterns/multi-tenant.qmd
-          - text: "Extension Bundle"
-            href: patterns/extension-bundle.qmd
-          - text: "Circuit Breaker"
-            href: patterns/circuit-breaker.qmd
-          - text: "Audit Trail"
-            href: patterns/audit-trail.qmd
-          - text: "Unit Testing"
-            href: patterns/unit-testing.qmd
-          - text: "Hot Code Update"
-            href: patterns/hot-update.qmd
-      - text: "Reference"
-        menu:
-          - text: "Traits (L0-L3)"
-            href: ref/traits.qmd
-          - text: "Decorators"
-            href: ref/decorators.qmd
-          - text: "Contracts"
-            href: ref/contracts.qmd
-          - text: "Kernel API"
-            href: ref/kernel-api.qmd
+          - text: "The retired signalpy book"
+            href: history/2026-08-v1-book/guide/00-layer-rules.qmd
 
   sidebar:
-    - title: "Tutorials"
+    - title: "Guide"
       contents:
-        - guide/00-layer-rules.qmd
-        - guide/01-first-component.qmd
-        - guide/02-give-and-take.qmd
-        - guide/03-dynamic-services.qmd
-        - guide/04-runnables-and-api.qmd
-        - guide/05-gateway-and-transports.qmd
-        - guide/06-auth-and-policy.qmd
-        - guide/07-building-a-provider.qmd
-    - title: "Concepts"
-      contents:
-        - concepts/architecture.qmd
-        - concepts/reactivity-by-example.qmd
-        - concepts/reactive-internals.qmd
-        - concepts/threading-model.qmd
-        - concepts/supervision.qmd
-        - concepts/bridging.qmd
-        - concepts/deployment.qmd
-        - concepts/kernel-reading-guide.qmd
-    - title: "Patterns"
-      contents:
-        - patterns/index.qmd
-        - patterns/reactive-intent.qmd
-        - patterns/secret-rotation.qmd
-        - patterns/ab-testing.qmd
-        - patterns/multi-tenant.qmd
-        - patterns/extension-bundle.qmd
-        - patterns/circuit-breaker.qmd
-        - patterns/audit-trail.qmd
-        - patterns/unit-testing.qmd
-        - patterns/hot-update.qmd
-    - title: "Reference"
-      contents:
-        - ref/traits.qmd
-        - ref/decorators.qmd
-        - ref/contracts.qmd
-        - ref/kernel-api.qmd
+        - guide/00-why.qmd
+        - guide/01-first-plugin.qmd
+        - guide/02-popo-components.qmd
+        - guide/03-tools.qmd
 
 format:
   html:

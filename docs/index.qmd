@@ -1,123 +1,52 @@
 ---
-title: "SignalPy Kernel"
-subtitle: "A reactive component kernel for backend services"
+title: "plugkit"
+subtitle: "A plugin kernel for Python. Every registration returns its undo, and something owns it."
 ---
 
-## The Idea
-
-Frontend frameworks like Vue and React changed how UIs work: you declare what depends on what, and when data changes, the framework updates everything automatically. No manual callbacks. No stale state.
-
-**SignalPy brings this model to backend services.**
-
-Your components declare dependencies. The kernel wraps every injected service in a reactive **Signal**. When you read `self.rt.config` inside an `@effect`, the kernel tracks that read. When config changes, your effect re-runs automatically.
+```bash
+pip install plugkit
+```
 
 ```python
-from signalpy.kernel import component, requires, computed, effect, runnable
-from signalpy.kernel.contracts import IConfig
+from plugkit import Context, provide
 
-@component("greeter")
-@requires(config=IConfig)
-class Greeter:
+class Greeter:                       # a plain class. imports nothing.
+    def __init__(self, database, prefix="hello"):
+        self.database, self.prefix = database, prefix
+    def hello(self, name):
+        return f"{self.prefix} {name}"
 
-    @computed                                        # cached, auto-recomputes
-    def greeting(self):
-        return self.rt.config.get("greeting", "Hello")
-
-    @effect                                          # re-runs when deps change
-    def log_greeting(self):
-        print(f"Greeting is now: {self.greeting()}")
-
-    @runnable("greet", params=GreetParams, description="Greet someone")
-    async def greet(self, params):
-        return {"message": f"{self.greeting()}, {params.name}!"}
+root = Context()
+await root.plugin(provide(Database))
+await root.plugin(provide(Greeter, needs=["database"]))
+root.greeter.hello("world")          # "hello world"
 ```
 
-## Where to Start
-
-Pick based on what you need right now:
-
-| Your goal | Start here |
-|---|---|
-| **"What APIs do I use? Where do I put my code?"** | [Layer Rules & Decision Guide](guide/00-layer-rules.qmd) — the most important page |
-| **"I want to build something with this"** | Tutorials 1–7, in order |
-| **"I want to understand how it works"** | [Reactivity by Example](concepts/reactivity-by-example.qmd) → [Reactive Internals](concepts/reactive-internals.qmd) |
-| **"I want to read the source code"** | [Source Walkthrough](concepts/kernel-reading-guide.qmd) — all 9 files, dependency order |
-| **"I need to look up a specific API"** | [Reference](#reference) section below |
-
-## Tutorials
-
-Each builds on the last. Read in order.
-
-| # | Tutorial | What you'll learn |
-|---|----------|----------|
-| 0 | [Layer Rules & Decision Guide](guide/00-layer-rules.qmd) | Three orthogonal mechanisms: `@requires` + direct calls, `@runnable` + transports, `publish` / `@subscribe` |
-| 1 | [First Component](guide/01-first-component.qmd) | `@component`, `@lifecycle`, boot, shutdown |
-| 2 | [Give and Take](guide/02-give-and-take.qmd) | `@provides`, `@requires`, typed contracts, `self.rt` |
-| 3 | [Dynamic Services & Reactivity](guide/03-dynamic-services.qmd) | `list[C]` aggregate, `@effect`, `@computed`, `batch()`, hot-add/remove |
-| 4 | [Runnables & Transport Config](guide/04-runnables-and-api.qmd) | `@runnable` schema declarations, `transports=[]`, transport config on `@component` |
-| 5 | [Transport Adapters](guide/05-gateway-and-transports.qmd) | How REST/MCP/CLI bindings are generated from `kernel.runnables()` |
-| 6 | [Auth & Policy](guide/06-auth-and-policy.qmd) | `requires_action`, `requires_role`, per-consumer auth enforcement |
-| 7 | [Building a Provider](guide/07-building-a-provider.qmd) | Write your own ICache, swap implementations |
-
-## Concepts
-
-Deep dives. Read any of these independently.
-
-| Page | What it explains |
-|------|-----------------|
-| [Architecture](concepts/architecture.qmd) | Constitution, two-axis model, three orthogonal mechanisms |
-| [Reactivity by Example](concepts/reactivity-by-example.qmd) | One full reactive cycle: boot → first run → mutation → re-run (side-by-side) |
-| [Reactive Engine Internals](concepts/reactive-internals.qmd) | The 5 data structures, tracking mechanism, 3 worked scenarios |
-| [Threading & Async Model](concepts/threading-model.qmd) | Concurrency, async supersede, `is_stale()`, `cancel_on_supersede`, propagation algorithm |
-| [Supervision & Reliability](concepts/supervision.qmd) | Erlang-style supervision trees, dead letter channel |
-| [Bridging External Systems](concepts/bridging.qmd) | Bridge pattern: lifecycle, 90% surface, escape hatch |
-| [Deployment Scales](concepts/deployment.qmd) | Monolith → containers → Dapr → agent system |
-| [Source Walkthrough](concepts/kernel-reading-guide.qmd) | All 9 kernel files explained in dependency order (reference companion) |
-
-## Production Patterns
-
-Each pattern is a standalone recipe using only standard kernel APIs.
-
-| Pattern | What it demonstrates |
-|---------|---------------------|
-| [Reactive Intent vs Default](patterns/reactive-intent.qmd) | 7 escape hatches for when default reactive semantics don't fit |
-| [Secret Rotation](patterns/secret-rotation.qmd) | Config → provider → @effect → vault auto-rotates |
-| [A/B Testing](patterns/ab-testing.qmd) | Deterministic hashing, map injection, runtime split adjustment |
-| [Multi-Tenant Isolation](patterns/multi-tenant.qmd) | kernel.instantiate(), target routing, structural scoping |
-| [Extension Bundle](patterns/extension-bundle.qmd) | hot_add/remove as a plugin system |
-| [Circuit Breaker](patterns/circuit-breaker.qmd) | Signal for breaker state, @effect for transitions |
-| [Audit Trail](patterns/audit-trail.qmd) | @subscribe wildcards for cross-cutting compliance |
-| [Unit Testing](patterns/unit-testing.qmd) | Three strategies: minimal kernel, reactive testing, event testing |
-| [Hot Code Update](patterns/hot-update.qmd) | Blue-green replacement with snapshot/restore |
-
-## Reference {#reference}
-
-| Page | What's in it |
-|------|-------------|
-| [Traits (L0–L3)](ref/traits.qmd) | 23 traits — what each is, how the kernel infers it |
-| [Decorators](ref/decorators.qmd) | All 11 decorators -- signature, parameters, example |
-| [Contracts](ref/contracts.qmd) | 8 Protocol interfaces — methods, providers, `self.rt.*` access |
-| [Kernel API](ref/kernel-api.qmd) | `Kernel`, `ServiceRegistry`, `Bus`, `Runtime`, `Signal`/`Computed`/`Effect` |
-
-## The 11 Decorators
-
-```
-@component  @provides  @requires           # core
-@computed   @effect                         # reactive
-@lifecycle.activate/deactivate/health       # lifecycle
-@runnable                                   # surface (schema-only)
-@prop   @kind   @skill                      # metadata
-@subscribe                                  # events
-```
-
-## At a Glance
+## Start here
 
 | | |
 |---|---|
-| Kernel core | ~3,800 lines, 9 files, zero required dependencies |
-| Reactivity | Signal, Computed, Effect — Vue 3-style auto-tracking |
-| Reliability | Dead letter, supervision trees |
-| Providers | 9: config, logging, credentials, storage, auth, tracing, workspace, gateway, configadmin |
-| Adapters | 3: REST (FastAPI), MCP, CLI (Click) |
-| Tests | 335 |
-| Traits | 24 across 4 levels (L0 Kernel, L1 Platform, L2 App, L3 Instance) |
+| [Why plugkit exists](guide/00-why.qmd) | the bug that is not a bug, and the invariant that fixes it |
+| [Your first plugin](guide/01-first-plugin.qmd) | inject, effects, and watching unload be total |
+| [Plain components](guide/02-popo-components.qmd) | `provide()`, and a `ctx` your type checker understands |
+| [Tools and permission](guide/03-tools.qmd) | the five-stage pipeline, and why a guard has no allow |
+
+## The one idea
+
+A component adds a route to a shared server, then unloads. The route stays,
+because nothing recorded who added it. That is not a missing feature, it is a
+missing invariant — so plugkit has one: **a registration returns its undo, and
+the fiber that owns your plugin's lifetime holds it.**
+
+Hot reload, dependency-driven activation, and safe implementation swapping are
+all consequences of that, not separate features.
+
+## Replaces signalpy-kernel
+
+`signalpy-kernel` 0.4.0 was the previous design — a reactive component
+microkernel with twelve decorators. It stays on PyPI and is retired. plugkit is
+not a version of it; it is a different design, and the reason for the break is
+that 1.0's components had to import the kernel and nothing owned their undo.
+
+The 1.0 documentation is preserved under
+[History](history/2026-08-v1-book/guide/00-layer-rules.qmd).

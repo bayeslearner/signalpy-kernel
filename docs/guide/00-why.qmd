@@ -1,0 +1,152 @@
+---
+title: "Why plugkit exists"
+subtitle: "The bug that is not a bug"
+---
+
+## Start with a bug that is not a bug
+
+`plugkit` replaces `signalpy-kernel`, an earlier attempt at the same problem.
+Understanding why it was replaced is the fastest way to understand what plugkit
+does differently, so here is the old design doing exactly what it was built to
+do:
+
+```python
+@component("http-server", version="1.0")
+@provides("IHttpServer")
+@requires(config=IConfig)
+class HttpServer:
+    @lifecycle.activate
+    def activate(self):
+        self.app = FastAPI()
+        self.app.add_route("/health", self.health)
+
+    @lifecycle.deactivate
+    def deactivate(self):
+        self.app = None
+```
+
+Now a second component adds a route to that server:
+
+```python
+@component("admin-api")
+@requires(server=IHttpServer)
+class AdminApi:
+    @lifecycle.activate
+    def activate(self):
+        self.rt.server.app.add_route("/admin", self.handle)
+```
+
+Unload `AdminApi`. What happens to `/admin`?
+
+It stays. Nothing recorded that `AdminApi` added it, so nothing removes it. The
+route now points at a method on a component that no longer exists. `AdminApi` can
+write a `deactivate` that removes it, and probably will, and will get it right
+today and wrong in six months when someone adds a second route and updates only
+one of the two lists.
+
+**This is not a missing feature. It is a missing invariant.** Nothing in the old
+design *owns* the undo of what a component did. So teardown is a promise each component
+makes individually, and the framework cannot check it.
+
+## The one idea in plugkit
+
+**A registration returns its own undo, and something owns the undo.**
+
+```python
+def admin_api(ctx, config=None):
+    return ctx.server.add_route("/admin", handle)   # returns a disposer
+admin_api.inject = ["server"]
+```
+
+`add_route` hands back a function that removes the route. `ctx` — really the
+*fiber*, the object representing this plugin's lifetime — keeps it. When the
+plugin unloads, for any reason, that function is called. The component author
+does not write teardown, cannot forget teardown, and cannot get teardown
+half-right.
+
+Everything else follows from that:
+
+**Hot reload is free.** Reloading a plugin is unload-then-apply. Unload is total,
+so reload is clean. There is no reload mechanism to implement.
+
+**Dependency-driven activation is free.** If a plugin can be stopped and started
+cleanly, then "stop it when its database goes away, start it when a database
+appears" is just calling those two operations at the right moment.
+
+**Swapping an implementation is free.** Replace the database service and every
+plugin holding a reference to the old one is rebuilt — not patched, rebuilt —
+so nobody is left holding a stale object.
+
+## Declarative versus imperative
+
+That is the real difference, and it is worth naming plainly.
+
+| | signalpy | plugkit |
+|---|---|---|
+| A component is | a class wearing decorators | a plain class |
+| Registration happens | by the kernel, reading metadata | by the plugin, calling a method |
+| Teardown happens | in a `deactivate` you write | by calling the disposers you returned |
+| The unit of lifetime is | a component instance | a fiber |
+| Vocabulary size | 12 decorators | 4 concepts |
+
+The old design asks you to *describe* your component and trusts the kernel to do
+the right thing. plugkit asks you to *do* things and hands you the undo each
+time.
+
+The declarative version reads better in a slide. The imperative version is the
+one where the framework can actually guarantee something.
+
+## "But now my class imports the framework"
+
+Correct, and that was the second complaint about the old design — a class covered in
+`@component`, `@provides`, `@requires` is no longer a plain Python object. You
+cannot construct it in a test without the kernel. You cannot lift it into another
+project. It has stopped being *yours*.
+
+plugkit's answer is to separate the component from its registration:
+
+```python
+# services/greeter.py — imports nothing. Not a framework file.
+class Greeter:
+    def __init__(self, database, prefix="hello"):
+        self.database = database
+        self.prefix = prefix
+
+    def hello(self, name):
+        return f"{self.prefix} {name}"
+```
+
+```python
+# app.py — the only file that knows a kernel exists
+from plugkit import provide
+from services.greeter import Greeter
+
+greeter = provide(Greeter, needs=["database"], config={"prefix": "greeter.prefix"})
+```
+
+`Greeter` is testable as `Greeter(database=FakeDB(), prefix="hi")`. No kernel, no
+container, no fixtures. That is [chapter 2](02-popo-components.qmd).
+
+## Where this design comes from
+
+The kernel is a port of **Cordis**, the plugin framework underneath
+[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) — DeepSeek's
+open-source agent runtime, ~457,000 lines of TypeScript across ~219 packages,
+every one of them a Cordis plugin.
+
+That matters for a practical reason rather than a prestige one. Because plugkit
+matches Cordis's *semantics* — the same event names, the same dispatch modes, the
+same lifetime rules — dsh's documentation stays a working specification for
+anything built here. Its catalogue of 58 services, its five-stage tool pipeline,
+its file-system policy events: all of it describes a substrate that means the
+same thing in this kernel. A design ported from there is a design, not a
+translation.
+
+`src/plugkit/VENDORED.md` records which port was vendored, why, and what was
+changed in it.
+
+## What to read next
+
+- [First plugin](01-first-plugin.qmd) — inject, effects, and watching unload be total
+- [Plain components](02-popo-components.qmd) — `provide()`, and a typed `ctx`
+- [Tools](03-tools.qmd) — the five-stage pipeline, and why a guard has no "allow"

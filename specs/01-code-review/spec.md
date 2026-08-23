@@ -1,8 +1,9 @@
 ---
 spec_id: 01-code-review
-status: ACTIVE
-since: 2026-04-22
-until: null
+status: CLOSED
+closed_as: RETRACTED
+since: 2026-08-23
+until: 2026-08-23
 epic: kernel
 features: [code-review-v1]
 supersedes: []
@@ -111,29 +112,29 @@ point currently runs.
 - [x] 2.4 Document the two-phase boot clearly
   - Enhanced inline comments explaining WHY two phases are needed
 
-- [ ] 2.5 Add `kernel/__init__.py` exports for `contracts` module
+- [-] 2.5 Add `kernel/__init__.py` exports for `contracts` module DROPPED: 2.0 re-exports contracts from its own package; 1.0 shipped 0.4.0 without it
   - `IConfig`, `IStorage`, etc. should be importable from `kernel.contracts`
   - Currently they're importable but not re-exported from `kernel`
 
-- [ ] 2.6 Consider caching the runtime per component instance
+- [-] 2.6 Consider caching the runtime per component instance DROPPED: never measured as a cost; 2.0 has no per-component runtime
   - `_build_runtime()` runs on every bus invocation (line 222-223)
   - For read-only runtimes, cache and invalidate on service changes
 
 ### P3 — Nice to Have
 
-- [ ] 3.1 Wire up the trait system to actually participate in activation
+- [-] 3.1 Wire up the trait system to actually participate in activation DROPPED: 2.0 deletes the trait system — it was inspection, not behaviour
   - Make `TraitRegistry` query-able during activation
   - Use trait applicators to auto-inject services based on trait membership
   - This is the big architectural investment — currently traits are metadata only
 
-- [ ] 3.2 Add a test harness component
+- [-] 3.2 Add a test harness component DROPPED: 2.0 tests plugins directly; a harness component has no consumer
   - A `TestEntry` that boots the kernel with in-memory everything
   - Makes it easy for embedders to test their components
 
-- [ ] 3.3 Add `__all__` to all modules
+- [-] 3.3 Add `__all__` to all modules DROPPED: cosmetic, and 1.0 is in maintenance now that 2.0 carries the direction
   - Controls public API surface for IDE autocompletion and documentation
 
-- [ ] 3.4 Add type annotations to `activate(self, rt)` signatures
+- [-] 3.4 Add type annotations to `activate(self, rt)` signatures DROPPED: 2.0 has no activate(self, rt); the POPO constructor is the typed surface
   - All platform/adapter components use untyped `rt` parameter
   - Use `Runtime` type for IDE support
 
@@ -141,13 +142,13 @@ point currently runs.
 
 - [x] Is the architecture fundamentally sound? — Yes, the two-axis model, constitution,
   and component patterns are well-designed. See D1.
-- [ ] Should the trait system be wired up now or deferred? — It's the biggest gap between
+- [-] Should the trait system be wired up now or deferred? DROPPED: answered by 2.0 — deleted. — It's the biggest gap between
   docs and code. Wiring it up would fulfill the architecture vision but adds complexity.
   Deferring keeps the kernel simpler but means docs describe a system that doesn't exist.
-- [ ] Should `kernel/contracts.py` ship with Axis 1 or Axis 2? — Contracts are "vocabulary"
+- [-] Should `kernel/contracts.py` ship with Axis 1 or Axis 2? DROPPED: answered by 2.0 — there is no Axis 1/2 split. — Contracts are "vocabulary"
   (Axis 2 by the doc's own definition) but ship in `kernel/`. The README says they ship
   with the kernel "so there's a common language." This is pragmatic but blurs the axis boundary.
-- [ ] Missing components from the architecture: `AuthProvider`, `WorkspaceProvider`,
+- [-] DROPPED: answered by 2.0 — these are ordinary plugins, not a platform tier. Missing components from the architecture: `AuthProvider`, `WorkspaceProvider`,
   `RemoteAdapter`, `GRPCAdapter`, `ClientGen` — are these planned or aspirational?
 
 ## Log
@@ -173,3 +174,16 @@ auth.py, workspace.py, remote.py, GRPCAdapter, etc.). See Decisions D1-D4.
 - Added scoped logger injection for ILogger contracts (P2.3)
 - Enhanced two-phase boot documentation (P2.4)
 - Updated README and spec. Example still boots 10 components successfully.
+
+## Disposition (2026-08-23)
+
+CLOSED / RETRACTED. Twelve of twenty-one tasks landed and shipped as
+`signalpy-kernel` 0.4.0. The remaining nine were 1.0 polish whose direction the
+2.0 sprint (`03-plugkit-kernel`) reversed rather than continued — the trait
+system it wanted to wire up is deleted in 2.0, and the Axis 1 / Axis 2 platform
+split it assumed does not exist there. Each is marked `[-] DROPPED` on the item
+with its reason. No successor: 1.0 stays as shipped, in maintenance.
+
+This spec sat ACTIVE from 2026-04-22 to 2026-08-23 while `02` was worked and
+closed on top of it — a violation of the activation gate that this closeout
+settles.

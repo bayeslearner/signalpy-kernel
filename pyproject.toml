@@ -3,14 +3,14 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "signalpy-kernel"
-version = "0.4.0"
-description = "A Signal-based reactive component microkernel for Python backend services"
+name = "plugkit"
+version = "0.1.0"
+description = "A plugin kernel for Python: every registration returns its undo, and a fiber owns it"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.13"
 license = "MIT"
 authors = [{ name = "Kun Deng", email = "bayeslearner@gmail.com" }]
-keywords = ["microkernel", "reactive", "signals", "components", "dependency-injection", "ioc"]
+keywords = ["plugin", "microkernel", "dependency-injection", "cordis", "reactive", "signals", "ioc"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -18,21 +18,22 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
 
-# Axis 1 (kernel/) has zero required dependencies.
-# All dependencies below are for Axis 2 (providers/, adapters/, entries/).
+# The kernel has zero required dependencies. Everything below is an extra
+# for one of the shipped services, each of which degrades rather than fails.
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/bayeslearner/signalpy-kernel"
-Documentation = "https://bayeslearner.github.io/signalpy-kernel/"
-Repository = "https://github.com/bayeslearner/signalpy-kernel"
-Issues = "https://github.com/bayeslearner/signalpy-kernel/issues"
+Homepage = "https://github.com/bayeslearner/plugkit"
+Documentation = "https://bayeslearner.github.io/plugkit/"
+Repository = "https://github.com/bayeslearner/plugkit"
+Issues = "https://github.com/bayeslearner/plugkit/issues"
 
 [project.optional-dependencies]
 # Platform providers
@@ -65,11 +66,11 @@ dev = [
 ]
 # Everything
 all = [
-    "signalpy-kernel[providers,rest,cli,tracing,config,hmr,dev]",
+    "plugkit[providers,rest,cli,tracing,config,hmr,dev]",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/signalpy", "src/signalpy2"]
+packages = ["src/plugkit"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
