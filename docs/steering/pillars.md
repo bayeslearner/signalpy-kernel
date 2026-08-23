@@ -21,18 +21,18 @@ adopt.
 
 | Pillar | State | Evidence |
 |---|---|---|
-| **Kernel** | 🟢 strong | 2.0 kernel green at 156 + 2 xfail vendored, plus 9 conformance and 21 tool-pipeline tests [src:src/plugkit/tests/] |
+| **Kernel** | 🟢 strong | 294 passing: the vendored suite, 13 conformance assertions, and one file per feature [src:src/plugkit/tests/] |
 | **Adoptability** | 🟢 strong | `binding.provide()` keeps components POPO; `test_component_needs_no_kernel_at_all` is the guard [src:src/plugkit/tests/test_binding.py] |
-| **Conformance** | 🟡 partial | 9 assertions cover the load-bearing semantics. The 58-key dsh service surface is one service in (`ctx.tools`); the rest is unbuilt [src:src/plugkit/services/tools.py] |
-| **Teaching** | 🟡 partial | The book is rebuilt around plugkit — four chapters covering the model, plugins, POPO components and tools [src:docs/guide/]. Patterns and reference pages are not yet reconstructed |
+| **Conformance** | 🟡 partial | 13 assertions cover the load-bearing semantics. The 58-key dsh service surface is one service in (`ctx.tools`); the rest is unbuilt [src:src/plugkit/services/tools.py] |
+| **Teaching** | 🟢 strong | Eight chapters, from why it exists to testing, every example executed by `test_guide_examples.py` and `test_readme_examples.py` [src:docs/guide/]. No API reference page yet |
 | **Packaging** | 🟡 partial | One package, `plugkit` 0.1.0, with honest `config`/`hmr` extras. Unreleased; the PyPI name is claimed but nothing is published. The vendored kernel is a fork, not a dependency [src:src/plugkit/VENDORED.md] |
 
 ## The honest read
 
-**Teaching is no longer the emergency it was.** The book now teaches plugkit
-rather than a deleted design. What is missing is depth, not direction: the
-patterns and reference sections have not been reconstructed, so a reader gets the
-model and the first three moves but no catalogue.
+**Teaching is done for now.** Eight chapters cover the model, the first plugin,
+plain components, tools, writing a service, config and reactivity, composition
+from a file, and testing. Every example runs in the suite. What is missing is a
+generated API reference, which is a packaging job rather than a writing one.
 
 **Conformance is a ceiling, not a gap.** Nine assertions is the right number for
 what exists. It grows as services are added, not before.

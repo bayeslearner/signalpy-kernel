@@ -12,9 +12,9 @@ it is what you get for free once unload is total. Dependency-driven activation i
 not a scheduler — it is what you get once a plugin's lifetime is a first-class
 object that can be stopped and started.
 
-`signalpy`, the retired predecessor, did not have this. A component declared what
-it offered with decorators; the kernel wired it; teardown was whatever
-`@lifecycle.deactivate` remembered to do.
+Frameworks that give a component a lifecycle without giving it ownership do not
+have this. A component declares what it offers, the framework wires it, and
+teardown is whatever a `deactivate` method remembered to do.
 Nothing owned the undo of a route the component registered, a listener it added,
 a connection it opened. So unload was best-effort, and hot reload had to be
 built.
@@ -44,10 +44,10 @@ plugkit/
   services/      ordinary plugins with NO privileged status
 ```
 
-**There is no platform tier.** `signalpy` had "Axis 2 — platform components": config,
-logging, credentials, storage, auth, workspace, tracing. Calling them platform
-implied the kernel needed them; it does not. Config is a plugin. Tools are a
-plugin. A composition may mount none of them and still be a working kernel.
+**There is no platform tier.** Config is a plugin. Tools are a plugin. A
+composition may mount none of the shipped services and still be a working kernel.
+Calling a service "platform" implies the kernel needs it, and the kernel needs
+none of them.
 
 The kernel's only built-in service is `ctx.logger`, and it earns that place for
 exactly one reason: the fiber must be able to report its own load failure, and it
@@ -140,11 +140,11 @@ adding an allow to a guard, you are building a veto stage and should say so.
 
 - **No component base class requirement.** A component is a plain class. The
   kernel-aware layer is the binding, not the component.
-- **No trait system.** `signalpy` auto-derived L0–L3 labels from what a component
-  declared. Nothing consumed them for behaviour; `kernel.status()` printed them.
+- **No trait system.** Auto-derived capability labels that nothing consumes for
+  behaviour are inspection dressed as architecture.
 - **No service locator.** A plugin may only read services it declared in
   `inject`. This is what makes the epoch trustworthy — a hidden dependency would
   not be in the digest, so its replacement would not reload the dependent.
-- **No compatibility layer for `signalpy`.** It was deleted rather than
-  deprecated, because it had no users. 0.4.0 stays on PyPI; nothing here pretends
-  to be it.
+- **No compatibility layer for the predecessor.** `signalpy-kernel` 0.4.0 stays
+  on PyPI; nothing here pretends to be it. The comparison lives in
+  [what-it-does-not-replace](what-it-does-not-replace.qmd), not here.

@@ -139,3 +139,32 @@ def test_the_signals_library_stands_alone():
     a.set(99)
     assert seen == [1, 10], "a disposed Effect still ran"
     assert is_stale() is False
+
+
+async def test_async_effect_supersede_semantics():
+    """The reactive-engine page claims a mid-await notification is not dropped."""
+    from plugkit import Signal, is_stale
+    from plugkit.signals import Effect
+
+    source = Signal(1)
+    runs = []
+
+    async def body():
+        value = source.get()          # read before the first await
+        await asyncio.sleep(0.01)
+        runs.append((value, is_stale()))
+
+    effect = Effect(body)
+    await asyncio.sleep(0)
+    source.set(2)                     # arrives while the first body is awaiting
+    for _ in range(20):
+        await asyncio.sleep(0.005)
+
+    assert [v for v, _ in runs] == [1, 2], f"a notification was dropped: {runs}"
+    effect.dispose()
+
+
+async def test_is_stale_is_false_outside_a_superseded_run():
+    from plugkit import is_stale
+
+    assert is_stale() is False

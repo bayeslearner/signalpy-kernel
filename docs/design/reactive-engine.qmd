@@ -1,23 +1,19 @@
 ---
-title: "Reactive Engine Internals"
-subtitle: "The five data structures, the tracking mechanism, and three scenarios traced step by step."
+title: "The reactive engine"
+subtitle: "How signals.py works inside: five data structures, the tracking mechanism, three traced scenarios"
 ---
 
-> **Reading order:** [Reactivity by Example](reactivity-by-example.qmd) (the mental model) →
-> **You are here** (how it actually works inside `reactive.py`) →
-> [Threading Model](threading-model.qmd) (concurrency, async supersede).
+`src/plugkit/signals.py` is 597 lines and imports nothing from the kernel. It can
+be used in a plain script. `ReactiveService` is the separate plugin that binds it
+to fiber lifetime, so a subscription is disposed with the plugin that created it.
 
-The entire reactive engine is one file: `src/plugkit/signals.py` (597 lines).
+Using it needs none of this page — [Config and reactivity](../guide/05-config-and-reactivity.qmd)
+covers that. Read this to understand why `ctx.reactive.effect` tracks its
+dependencies without being told, how `batch()` coalesces writes, and what breaks
+if you mutate a dict in place.
 
-It has no import from the kernel and can be used on its own. `ReactiveService`
-is the plugin that binds it to fiber lifetime, so a subscription is disposed with
-the plugin that created it.
-This page explains how it works internally — the data structures, the tracking
-mechanism, and three worked scenarios.
-
-**You don't need to read this to use the kernel.** This is for when you want
-to understand *why* `@effect` auto-tracks, *how* `batch()` deduplicates, or
-*what* breaks if you mutate a dict in place.
+This engine is the one part of `signalpy-kernel` that survived into plugkit
+unchanged, and this page came with it.
 
 
 ## The Five Data Structures
@@ -180,7 +176,8 @@ data = {**signal.peek(), "key": "new"}  # new dict
 signal.set(data)                         # different object → notifies!
 ```
 
-This is why `ConfigProvider.set()` copies the dict internally.
+This is why `ConfigService` builds a new dict on every `set()` rather than
+mutating in place — see `_bury` in `services/config.py`.
 :::
 
 
@@ -397,8 +394,21 @@ Computed inherits from `_Consumer` (reads signals) but also has `_subscribers`
 (others depend on it). It's both reader and writer in the reactive graph.
 
 
+## Async effects
+
+An `async def` body is supported with one limitation: dependency tracking covers
+only the signal reads that happen **before the first `await`**. Reads after an
+await run in a different step, where `_active_consumer` has been reset. Read
+every signal you need up front, then await with the captured values.
+
+When a notification arrives while an async body is mid-await, the engine sets
+`_pending_run` rather than dropping it, and the body runs again when it finishes.
+Inside the body, `is_stale()` returns `True` once a newer run is queued, so a
+long body can choose to stop early. `Effect(fn, cancel_on_supersede=True)` goes
+further and cancels the in-flight task at supersede time, so the body sees
+`CancelledError` at its next await.
+
 ## See also
 
-- [Reactivity by Example](reactivity-by-example.qmd) — one full cycle, consumer/provider/kernel side-by-side
-- [Threading Model](threading-model.qmd) — concurrency, async supersede, `is_stale()`, `cancel_on_supersede`
+- [Config and reactivity](../guide/05-config-and-reactivity.qmd) — using this from a plugin
 - [Python `contextvars` docs](https://docs.python.org/3/library/contextvars.html)

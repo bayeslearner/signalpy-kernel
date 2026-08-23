@@ -117,9 +117,9 @@ deleted rather than deprecated because it had no users.
 `signalpy-kernel` 0.4.0 was the previous design — a reactive component
 microkernel with twelve decorators. Retired 2026-08-23 after four months with
 0 stars, 0 forks, 0 watchers and 0 issues. It stays on PyPI for prismi3, which
-pins and vendors it. Its documentation was removed with it — a book for a
-deleted package makes the repo read as two systems — and is in git history at
-`23d1fdb`. Its design notes remain at `docs/history/2026-04-design-notes/`.
+pins and vendors it. Its documentation and design notes were removed with it — a
+book and 4,500 lines of notes for a deleted package make the repo read as two
+systems. Git has them; `docs/history/README.md` gives the commands.
 
 The break happened for two reasons: 1.0's components had to import the kernel,
 and nothing in it owned the undo of what a component registered.
