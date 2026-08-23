@@ -427,3 +427,42 @@ async def test_the_typed_effects_example_runs():
     await fiber.dispose()
     await settle()
     assert root.server.routes == {}
+
+
+# ── "What each call returns" ─────────────────────────────────────────────
+
+
+async def test_provide_returns_a_description_and_runs_nothing():
+    p = provide(Database, "database")
+    assert isinstance(p, dict)
+    assert sorted(p) == ["apply", "factory", "inject", "name", "provides"]
+    assert not hasattr(p, "__await__")
+
+
+async def test_plugin_returns_a_fiber_synchronously():
+    from plugkit import Fiber, FiberState
+
+    root = Context()
+    fiber = root.plugin(provide(Database, "database"))
+
+    assert isinstance(fiber, Fiber)
+    assert hasattr(fiber, "__await__")
+    assert fiber.state is FiberState.LOADING
+    assert "database" not in root
+
+    await fiber
+    assert fiber.state is FiberState.ACTIVE
+    assert "database" in root
+
+
+async def test_ctx_provide_is_the_other_one():
+    """The context method registers immediately and returns a disposer."""
+    captured = {}
+
+    def my_plugin(ctx, config=None):
+        captured["disposer"] = ctx.provide("greeting", "hello")
+
+    root = Context()
+    await root.plugin(my_plugin)
+    assert root.greeting == "hello"
+    assert callable(captured["disposer"])

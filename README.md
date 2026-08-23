@@ -16,7 +16,7 @@ removed, everything that part registered is removed with it.
 | **Guaranteed teardown** | Each part returns a function that undoes its work. plugkit calls it whenever the part is removed, for any reason. |
 | **Add and remove at runtime** | Load and unload parts while the program runs, including reloading source files you have just edited. |
 | **Implementation swapping** | Replace one service with another. Every part that used the old one is rebuilt with the new one, so none keeps a stale reference. |
-| **Composition from a file** | Describe an application as a YAML list of parts and their settings. |
+| **Composition from a file** | Describe an application as a YAML list of parts and their settings. `await load_app(root, "app.yml")`. |
 
 Four services ship alongside, each an ordinary part you mount or leave out:
 configuration, reactive values, supervised restarts, and a tool registry with a
@@ -223,6 +223,61 @@ reader will ask why not just use it.
 `@Invalidate` does not undo a component's side effects either; the registry is
 framework-global with no scoped views; and its listeners cannot wrap or veto one
 another.
+
+## What each call returns
+
+Three names look related and are not. `provide` in particular means two
+different things depending on where you write it.
+
+| Call | Returns | Runs anything? |
+|---|---|---|
+| `provide(Greeter, "greeter")` | a plain `dict` — a plugin description | no |
+| `root.plugin(p)` | a `Fiber`, synchronously. Awaitable. | yes, starts the load |
+| `ctx.provide("greeter", obj)` | a disposer | yes, registers immediately |
+
+### `provide(...)` builds a description
+
+```python
+p = provide(Database, "database")
+type(p)          # dict
+sorted(p)        # ['apply', 'factory', 'inject', 'name', 'provides']
+```
+
+It is an ordinary function. No coroutine, not awaitable, nothing registered.
+It packages a class into the shape `root.plugin()` accepts. You can build the
+same dict by hand; `provide` writes the `apply` for you.
+
+### `root.plugin(...)` mounts it
+
+```python
+fiber = root.plugin(p)      # no await
+type(fiber)                 # Fiber
+fiber.state                 # LOADING
+"database" in root          # False — the load has not finished
+
+await fiber
+fiber.state                 # ACTIVE
+"database" in root          # True
+```
+
+It returns a `Fiber` **synchronously**, not a coroutine. The fiber is awaitable,
+so `await root.plugin(p)` is the same call plus waiting for that plugin's load.
+See [What `await root.plugin(...)` waits for](#what-await-rootplugin-waits-for).
+
+### `ctx.provide(...)` is a different function
+
+Inside a plugin body, `ctx.provide` is the **context method**, not the binding
+helper. It registers a value under a name right now and hands back the disposer.
+
+```python
+def my_plugin(ctx, config=None):
+    ctx.provide("greeter", Greeter())     # registers; returns a disposer
+```
+
+The two never appear in the same file in practice: `provide()` goes in the file
+that wires the application, `ctx.provide()` goes inside a plugin. The name is
+shared because both answer "what service does this supply". `provide()` is in
+fact a thin wrapper that calls `ctx.provide()` for you.
 
 ## Four terms
 
@@ -610,6 +665,7 @@ There is no privileged tier.
 | `services.config` | `ctx.config` — YAML, dict, env and pydantic loading |
 | `services.tools` | `ctx.tools` — a tool registry with a five-stage permission pipeline |
 | `services.supervision` | `ctx.supervisor` — restart strategies for failed fibers |
+| `services.loader` | `ctx.loader` — mount an application from a YAML file |
 
 Two services need a third-party package. Install them as extras:
 

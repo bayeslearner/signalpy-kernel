@@ -1,106 +1,107 @@
-"""Port of packages/loader/tests/index.spec.ts."""
+"""`ctx.loader` — an application described by a YAML file.
+
+The README lists composition from a file as a feature. It was not exercised
+anywhere until this file: the kernel's `Loader` is abstract, and every existing
+test used a `MockLoader` defined in the test helpers. A shipped feature nobody
+runs is a claim, not a feature.
+"""
 
 import asyncio
+import textwrap
 
-import pytest
-
-from plugkit.cordis import Context, FiberState
-
-from .conftest import Mock, sleep
-from .loader_utils import MockLoader, install
+from plugkit import Context
+from plugkit.services.loader import FileLoader, load_app
 
 
-@pytest.fixture()
-def basic():
+async def settle(n=60):
+    for _ in range(n):
+        await asyncio.sleep(0)
+
+
+def write_app(tmp_path, body: str):
+    path = tmp_path / "app.yml"
+    path.write_text(textwrap.dedent(body))
+    return str(path)
+
+
+async def test_an_application_loads_from_a_file(tmp_path):
+    path = write_app(tmp_path, """
+        - id: db
+          name: plugkit.tests.appfixture.database
+          config:
+            dsn: postgres://prod
+        - id: greet
+          name: plugkit.tests.appfixture.greeter
+          config:
+            prefix: hi
+    """)
+
     root = Context()
-    loader = MockLoader(root)
+    await load_app(root, path)
 
-    async def setup():
-        await root.plugin(loader)
-
-    return root, loader, setup
+    assert "database" in root
+    assert root.greeter("world") == "hi world via postgres://prod"
 
 
-async def test_loader_basic_support():
+async def test_entry_order_in_the_file_does_not_matter(tmp_path):
+    """`greeter` needs `database` and is listed first."""
+    path = write_app(tmp_path, """
+        - id: greet
+          name: plugkit.tests.appfixture.greeter
+        - id: db
+          name: plugkit.tests.appfixture.database
+    """)
+
     root = Context()
-    loader = await install(root)
+    await load_app(root, path)
+    assert root.greeter("x") == "hello x via sqlite://"
 
-    foo = loader.mock("foo", lambda ctx, config: ctx.on("internal/update", lambda *a: None))
-    bar = loader.mock("bar", lambda ctx, config: ctx.on("internal/update", lambda *a: None))
-    qux = loader.mock("qux", lambda ctx, config: ctx.on("internal/update", lambda *a: None))
 
-    # loader initiate
-    await loader.read(
-        [
-            {"id": "1", "name": "foo"},
-            {"id": "2", "name": "@cordisjs/plugin-group", "config": [
-                {"id": "3", "name": "bar", "config": {"a": 1}},
-                {"id": "4", "name": "qux", "disabled": True},
-            ]},
-        ]
+async def test_config_from_the_file_reaches_the_plugin(tmp_path):
+    path = write_app(tmp_path, """
+        - id: db
+          name: plugkit.tests.appfixture.database
+          config:
+            dsn: mysql://somewhere
+    """)
+
+    root = Context()
+    await load_app(root, path)
+    assert root.database.dsn == "mysql://somewhere"
+
+
+async def test_a_plugin_can_be_registered_by_hand():
+    """`register()` resolves a name without importing anything.
+
+    Works for an entry created directly through `loader.create()`. It does
+    **not** reach entries listed inside an included YAML file — those resolve
+    through the include's own tree. See the docstring on `FileLoader.register`.
+    """
+    import types
+
+    def apply(ctx, config=None):
+        ctx.provide("database", "the fake")
+
+    root = Context()
+    await root.plugin(FileLoader)
+    await settle(10)
+    root.loader.register(
+        "fake.database", types.SimpleNamespace(name="fake.database", apply=apply)
     )
+    await root.loader.create({"name": "fake.database"})
+    await settle()
 
-    loader.expect_enable(foo)
-    loader.expect_enable(bar)
-    loader.expect_disable(qux)
-    assert len(foo.calls) == 1
-    assert len(bar.calls) == 1
-    assert len(qux.calls) == 0
-
-    # loader update
-    foo.reset_calls()
-    bar.reset_calls()
-    await loader.read([{"id": "1", "name": "foo"}, {"id": "4", "name": "qux"}])
-
-    loader.expect_enable(foo)
-    loader.expect_disable(bar)
-    loader.expect_enable(qux)
-    assert len(foo.calls) == 0
-    assert len(bar.calls) == 0
-    assert len(qux.calls) == 1
-
-    # plugin self-update
-    loader.expect_fiber("1").update({"a": 3})
-    await sleep()
-    assert loader.data == [
-        {"id": "1", "name": "foo", "config": {"a": 3}},
-        {"id": "4", "name": "qux"},
-    ]
-
-    # plugin self-dispose
-    loader.expect_fiber("1").dispose()
-    await sleep()
-    assert loader.data == [
-        {"id": "1", "name": "foo", "disabled": True, "config": {"a": 3}},
-        {"id": "4", "name": "qux"},
-    ]
+    assert root.database == "the fake"
 
 
-async def test_loader_intercept_config():
+async def test_a_missing_dependency_leaves_the_entry_waiting(tmp_path):
+    """A file listing only the consumer produces no error and no service."""
+    path = write_app(tmp_path, """
+        - id: greet
+          name: plugkit.tests.appfixture.greeter
+    """)
+
     root = Context()
-    loader = await install(root)
-
-    release = asyncio.Future()
-    loader.mock("foo", lambda ctx, config: release)
-    bar = loader.mock("bar", lambda ctx, config: ctx.on("internal/update", lambda *a: True))
-    bar.inject = ["never"]
-    loader.mock("qux", lambda ctx, config: None)
-
-    # pending
-    foo = await loader.create({"name": "foo"})
-    bar_id = await loader.create({"name": "bar"})
-    qux_id = await loader.create(
-        {"name": "qux", "inject": {"loader": True}, "intercept": {"loader": {"await": True}}}
-    )
-
-    await sleep()
-    assert loader.expect_fiber(foo).state == FiberState.LOADING
-    assert loader.expect_fiber(bar_id).state == FiberState.PENDING
-    assert loader.expect_fiber(qux_id).state == FiberState.PENDING
-
-    # resolved
-    release.set_result(None)
-    await sleep()
-    assert loader.expect_fiber(foo).state == FiberState.ACTIVE
-    assert loader.expect_fiber(bar_id).state == FiberState.PENDING
-    assert loader.expect_fiber(qux_id).state == FiberState.ACTIVE
+    await load_app(root, path)
+    assert "greeter" not in root
+    assert "database" not in root
