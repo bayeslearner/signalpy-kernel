@@ -166,6 +166,24 @@ means the same thing in this kernel.
 `src/plugkit/VENDORED.md` records which port was vendored, why, and what was
 changed in it.
 
+## Is this not just a DI container?
+
+For a fixed object graph, a container is better. `dependency-injector` wires the
+quick-start example in fewer lines, synchronously, with no strings.
+
+The difference appears when components come and go. Measured against
+`dependency-injector` 4.x:
+
+| | `dependency-injector` | plugkit |
+|---|---|---|
+| Request a service that does not exist | `AttributeError` | the dependent waits in `PENDING` until it appears |
+| Swap an implementation | the existing dependent keeps the old object until `full_reset()` | dependents are rebuilt automatically; replaced objects' `close()` runs |
+| Remove a service | no API for it | dependents stop, their `close()` runs, the name disappears |
+| Undo what a component registered elsewhere | not tracked | the fiber owns it |
+
+The first three rows are what a container does not attempt. The fourth is the
+one described above, and is the reason the other three are possible.
+
 ## What to read next
 
 - [First plugin](01-first-plugin.qmd) — inject, effects, and watching unload be total

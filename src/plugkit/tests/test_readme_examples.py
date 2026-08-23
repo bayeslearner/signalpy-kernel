@@ -35,15 +35,57 @@ class Greeter:
         self.prefix = prefix
 
     def hello(self, name):
-        return f"{self.prefix} {name}"
+        return f"{self.prefix} {name}, via {self.database.dsn}"
 
 
 async def test_quickstart():
+    """The three claims the quickstart makes, in order."""
     root = Context()
-    await root.plugin(provide(Database, "database"))
+
     await root.plugin(provide(Greeter, "greeter", needs=["database"]))
     await settle()
-    assert root.greeter.hello("world") == "hello world"
+    assert "greeter" not in root, "it did not wait for its dependency"
+
+    database = await root.plugin(provide(Database, "database"))
+    await settle()
+    assert root.greeter.hello("world") == "hello world, via sqlite://"
+
+    await database.dispose()
+    await settle()
+    assert "greeter" not in root, "it did not stop with its dependency"
+
+
+async def test_awaiting_a_pending_plugin_returns():
+    """The quickstart awaits a mount whose dependency is missing."""
+    from plugkit import FiberState
+
+    root = Context()
+    fiber = await asyncio.wait_for(
+        root.plugin(provide(Greeter, "greeter", needs=["database"])), timeout=1.0
+    )
+    assert fiber.state is FiberState.PENDING
+
+
+async def test_swapping_an_implementation_rebuilds_dependents():
+    """The comparison table's third row."""
+
+    class OtherDatabase(Database):
+        pass
+
+    root = Context()
+    database = await root.plugin(provide(Database, "database"))
+    await root.plugin(provide(Greeter, "greeter", needs=["database"]))
+    await settle()
+    first = root.greeter
+    assert isinstance(first.database, Database)
+
+    await database.dispose()
+    await settle()
+    await root.plugin(provide(OtherDatabase, "database"))
+    await settle()
+
+    assert root.greeter is not first, "the dependent was not rebuilt"
+    assert isinstance(root.greeter.database, OtherDatabase)
 
 
 # ── "The one idea", steps 1-5 ─────────────────────────────────────────────

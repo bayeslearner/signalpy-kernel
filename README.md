@@ -101,9 +101,8 @@ pip install plugkit
 
 ## Quick start
 
-The program below builds two objects and connects them. `Greeter` needs a
-`Database` in its constructor. plugkit constructs both, passes one into the
-other, and makes each reachable by name.
+The program registers a greeter that needs a database before any database exists,
+then supplies one, then takes it away again.
 
 ```python
 import asyncio
@@ -116,34 +115,64 @@ class Database:
 
 
 class Greeter:
-    def __init__(self, database, prefix="hello"):
+    def __init__(self, database):
         self.database = database
-        self.prefix = prefix
 
     def hello(self, name):
-        return f"{self.prefix} {name}"
+        return f"hello {name}, via {self.database.dsn}"
 
 
 async def main():
     root = Context()
-    await root.plugin(provide(Database, "database"))
-    await root.plugin(provide(Greeter, "greeter", needs=["database"]))
 
-    print(root.greeter.hello("world"))     # hello world
+    # Register the greeter first. It needs a database, and none exists yet.
+    await root.plugin(provide(Greeter, "greeter", needs=["database"]))
+    print("greeter" in root)                 # False — it is waiting
+
+    # The database arrives. The greeter is constructed and registered.
+    database = await root.plugin(provide(Database, "database"))
+    await asyncio.sleep(0)
+    print(root.greeter.hello("world"))       # hello world, via sqlite://
+
+    # Take the database away.
+    await database.dispose()
+    await asyncio.sleep(0)
+    print("greeter" in root)                 # False — it stopped with its dependency
 
 asyncio.run(main())
 ```
 
-The two `provide` calls do the wiring:
+Three things happened that nobody wrote code for. The greeter waited instead of
+failing. It was constructed once its dependency existed. It stopped when that
+dependency was removed.
 
-- `provide(Database, "database")` constructs `Database()` and registers it under
-  the name `"database"`.
-- `provide(Greeter, "greeter", needs=["database"])` waits until `"database"`
-  exists, then constructs `Greeter(database=<that object>)` and registers it
-  under `"greeter"`.
+## Should you use a DI container instead?
 
-`root.greeter` returns the `Greeter` instance. Neither class imports plugkit;
-both are ordinary Python classes with ordinary constructors.
+For a fixed object graph, yes. `dependency-injector` does the same wiring in
+fewer lines, synchronously, with no strings:
+
+```python
+class Container(containers.DeclarativeContainer):
+    database = providers.Singleton(Database)
+    greeter  = providers.Singleton(Greeter, database=database)
+
+Container().greeter().hello("world")     # hello world
+```
+
+plugkit costs more to write. It is worth that cost only when components appear
+and disappear while the program runs. Measured against
+`dependency-injector` 4.x:
+
+| | `dependency-injector` | plugkit |
+|---|---|---|
+| Wire a fixed graph | 2 lines, synchronous | 2 lines, `async` |
+| Request a service that does not exist | `AttributeError` | the dependent waits in `PENDING` until it appears |
+| Swap an implementation | the existing dependent keeps the old object until you call `full_reset()` | dependents are rebuilt automatically; the replaced objects' `close()` runs |
+| Remove a service | no API for it | dependents stop, their `close()` runs, the name disappears |
+| Undo what a component registered elsewhere | not tracked | the fiber owns it |
+
+Choose a container when the answer to "what runs in this process" is decided at
+startup. Choose plugkit when it is not.
 
 ## Four terms
 
