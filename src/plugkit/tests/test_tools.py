@@ -17,6 +17,7 @@ from plugkit import (
     ConfigService,
     Context,
     Deny,
+    PointsService,
     Tool,
     ToolsService,
     timeout_policy,
@@ -43,6 +44,9 @@ class Adder:
 
 async def boot(*plugins):
     root = Context()
+    # ToolsService holds its tools, guards and approvers in extension points,
+    # so `points` is a declared dependency rather than private state.
+    await root.plugin(PointsService)
     await root.plugin(ToolsService)
     for plugin in plugins:
         await root.plugin(plugin)

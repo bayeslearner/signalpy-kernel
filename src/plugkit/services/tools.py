@@ -189,16 +189,16 @@ class ToolsService(Service):
     """Provides `ctx.tools`."""
 
     provide = "tools"
+    inject = ["points"]
+
+    #: Point names. Prefixed so a composition can tell at a glance, from
+    #: `ctx.points.names()`, which points belong to which service.
+    TOOLS = "tools"
+    GUARDS = "tools.guards"
+    APPROVERS = "tools.approvers"
 
     def __init__(self, ctx, config=None):
         super().__init__(ctx)
-        self._tools: dict[str, Any] = {}
-        self._guards: list[Callable[[ToolExecution], str | None]] = []
-        # A stack, not a single slot with save/restore. Restoring a saved value
-        # is only correct if plugins unload in reverse mount order; disposing an
-        # older registration first would otherwise restore *its* saved value and
-        # wipe a newer approver. Removing by identity has no such assumption.
-        self._approvers: list[Callable[[ToolExecution, str | None], Any]] = []
 
     # ── registration ──────────────────────────────────────────────────
 
@@ -223,15 +223,7 @@ class ToolsService(Service):
         if not callable(tool.execute):
             raise TypeError(f"a tool's execute must be callable, {tool!r} has {tool.execute!r}")
 
-        registry = self._tools
-
-        def execute():
-            if name in registry:
-                raise ValueError(f"tool {name!r} is already registered")
-            registry[name] = tool
-            return lambda: registry.pop(name, None)
-
-        return self.ctx.effect(execute, f"ctx.tools.register({name!r})")
+        return self.ctx.points.add(self.TOOLS, tool, key=name, unique=True)
 
     def guard(self, guard: Callable[[ToolExecution], str | None]):
         """Register a stage-2 guard. Returns a disposer.
@@ -240,18 +232,12 @@ class ToolsService(Service):
         is no allow: guards only ever reduce permission, so no later
         registration can undo yours.
         """
-        guards = self._guards
-
-        def execute():
-            guards.append(guard)
-            return lambda: guards.remove(guard) if guard in guards else None
-
-        return self.ctx.effect(execute, "ctx.tools.guard()")
+        return self.ctx.points.add(self.GUARDS, guard)
 
     @property
     def _approver(self) -> Callable[[ToolExecution, str | None], Any] | None:
         """The most recently registered approver, or None."""
-        return self._approvers[-1] if self._approvers else None
+        return self.ctx.points.last(self.APPROVERS)
 
     def set_approver(self, approver: Callable[[ToolExecution, str | None], Any]):
         """Register who answers an `Ask`. Returns a disposer.
@@ -260,31 +246,22 @@ class ToolsService(Service):
         a composition with no approver denies instead of hanging or allowing.
 
         The most recent registration wins. Disposing any registration removes
-        only that one, in any order.
+        only that one, in any order — `points.last()` reads the newest by
+        registration sequence rather than restoring a saved value, so unloading
+        an older approver cannot resurrect it over a newer one.
         """
-        approvers = self._approvers
-
-        def execute():
-            approvers.append(approver)
-
-            def dispose():
-                if approver in approvers:
-                    approvers.remove(approver)
-
-            return dispose
-
-        return self.ctx.effect(execute, "ctx.tools.set_approver()")
+        return self.ctx.points.add(self.APPROVERS, approver)
 
     # ── inspection ────────────────────────────────────────────────────
 
     def get(self, name: str) -> Any | None:
-        return self._tools.get(name)
+        return self.ctx.points.get(self.TOOLS, name)
 
     def list(self) -> list:
-        return list(self._tools.values())
+        return self.ctx.points.all(self.TOOLS)
 
     def names(self) -> list[str]:
-        return sorted(self._tools)
+        return sorted(tool.name for tool in self.list())
 
     # ── the pipeline ──────────────────────────────────────────────────
 
@@ -297,7 +274,7 @@ class ToolsService(Service):
         id: str | None = None,
     ) -> ToolResult:
         """Run a tool through all five stages. Never raises."""
-        tool = self._tools.get(name)
+        tool = self.get(name)
         if tool is None:
             return ToolResult.failure("UNKNOWN_TOOL", f"no tool named {name!r}")
 
@@ -349,7 +326,7 @@ class ToolsService(Service):
         return Deny(ask.reason or "denied by approver")
 
     def _stage2(self, execution: ToolExecution) -> str | None:
-        for guard in list(self._guards):
+        for guard in self.ctx.points.all(self.GUARDS):
             try:
                 reason = guard(execution)
             except Exception as exc:

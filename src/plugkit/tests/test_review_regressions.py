@@ -8,7 +8,13 @@ import asyncio
 
 import pytest
 
-from plugkit import ConfigService, Context, ReactiveService, ToolsService
+from plugkit import (
+    ConfigService,
+    Context,
+    PointsService,
+    ReactiveService,
+    ToolsService,
+)
 from plugkit.services.supervision import SupervisorService
 
 
@@ -54,6 +60,7 @@ async def test_a_tool_body_never_runs_twice():
     """
     tool = Destructive()
     root = Context()
+    await root.plugin(PointsService)
     await root.plugin(ToolsService)
     await root.plugin(register(tool))
     await settle()
@@ -73,6 +80,7 @@ async def test_a_one_argument_tool_body_still_works():
             return arguments["text"]
 
     root = Context()
+    await root.plugin(PointsService)
     await root.plugin(ToolsService)
     await root.plugin(register(Simple()))
     await settle()
@@ -87,6 +95,7 @@ async def test_a_var_args_tool_body_works():
             return len(args)
 
     root = Context()
+    await root.plugin(PointsService)
     await root.plugin(ToolsService)
     await root.plugin(register(Flexible()))
     await settle()
@@ -263,6 +272,7 @@ async def test_approver_survives_an_out_of_order_dispose():
     permission regression rather than a visible error.
     """
     root = Context()
+    await root.plugin(PointsService)
     await root.plugin(ToolsService)
 
     def first(ctx, config=None):
@@ -286,6 +296,7 @@ async def test_approver_survives_an_out_of_order_dispose():
 
 async def test_disposing_the_newest_approver_falls_back():
     root = Context()
+    await root.plugin(PointsService)
     await root.plugin(ToolsService)
 
     def first(ctx, config=None):
@@ -318,6 +329,7 @@ async def test_a_non_string_tool_name_is_rejected():
             return 1
 
     root = Context()
+    await root.plugin(PointsService)
     await root.plugin(ToolsService)
 
     def register(ctx, config=None):
@@ -337,6 +349,7 @@ async def test_an_empty_tool_name_is_rejected():
             return 1
 
     root = Context()
+    await root.plugin(PointsService)
     await root.plugin(ToolsService)
 
     def register(ctx, config=None):

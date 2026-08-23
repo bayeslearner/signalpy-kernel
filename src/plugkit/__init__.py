@@ -62,7 +62,8 @@ from .signals import Computed, Effect, Signal, batch, is_stale  # noqa: F401
 
 # The shipped services. They have no privileged status — each is an ordinary
 # plugin you mount or don't, re-exported here only for convenience.
-from .services.config import ConfigService  # noqa: F401
+from .services.config import ConfigService
+from .services.points import Contribution, PointsService  # noqa: F401
 from .services.loader import FileLoader, load_app  # noqa: F401
 from .services.reactive import ReactiveService  # noqa: F401
 from .services.supervision import Policy, SupervisorService  # noqa: F401
@@ -101,6 +102,8 @@ __all__ = [
     "is_stale",
     # ── shipped services: ordinary plugins, mount what you need ───────
     "ConfigService",
+    "PointsService",
+    "Contribution",
     "FileLoader",
     "load_app",
     "ReactiveService",
