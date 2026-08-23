@@ -1,13 +1,10 @@
-"""Run the examples from README.md and the guide, and check their claims.
+"""Run the README examples and assert the claims made around them.
 
-Written because the README once showed `return ctx.server.add_route(...)` with
-the comment "returns its undo". No such API exists — a plain class's method
-returns whatever its author wrote. The docs had invented a capability, which is
-the worst kind of documentation bug: it teaches a mental model the code does not
-have.
+The README once showed `return ctx.server.add_route(...)` with the comment
+"returns its undo". No such API exists. A plain class's method returns whatever
+its author wrote, and the docs described a capability the code did not have.
 
-If an example changes, change it here too. If it stops being runnable, this
-fails.
+Change an example, change it here.
 """
 
 import asyncio
@@ -180,3 +177,81 @@ async def test_unload_also_happens_when_the_dependency_is_replaced():
     await server_fiber.dispose()          # nobody called dispose on admin_api
     await settle()
     assert removed == ["cleaned"], "the undo did not run when the dependency left"
+
+
+# ── "Writing a plugin" ────────────────────────────────────────────────────
+
+
+async def test_a_plugin_takes_exactly_two_parameters():
+    from plugkit import FiberState
+
+    def one(ctx):
+        pass
+
+    def two(ctx, config):
+        pass
+
+    def three(ctx, config, extra):
+        pass
+
+    states = {}
+    for fn in (one, two, three):
+        root = Context()
+        fiber = root.plugin(fn)
+        await settle()
+        states[fn.__name__] = fiber.state
+
+    assert states["one"] is FiberState.FAILED
+    assert states["two"] is FiberState.ACTIVE
+    assert states["three"] is FiberState.FAILED
+
+
+async def test_the_config_parameter_is_per_mount():
+    """One shared ctx.config could not express two ports for two live mounts."""
+    seen = []
+
+    def server(ctx, config=None):
+        seen.append(config["port"])
+
+    root = Context()
+    await root.plugin(server, {"port": 8080})
+    await root.plugin(server, {"port": 9090})
+    await settle()
+    assert seen == [8080, 9090]
+
+
+async def test_config_parameter_and_ctx_config_are_unrelated():
+    from plugkit import ConfigService
+
+    observed = {}
+
+    def probe(ctx, config=None):
+        observed["parameter"] = config
+        observed["service"] = ctx.config.get("app.name")
+
+    probe.inject = ["config"]
+
+    root = Context()
+    await root.plugin(ConfigService, {"dict": {"app": {"name": "shared"}}})
+    await root.plugin(probe, {"port": 8080})
+    await settle()
+
+    assert observed["parameter"] == {"port": 8080}
+    assert observed["service"] == "shared"
+
+
+async def test_reading_a_service_not_in_inject_raises():
+    """Point 2 of the `inject` list."""
+    errors = []
+
+    def sneaky(ctx, config=None):
+        try:
+            ctx.server
+        except AttributeError as exc:
+            errors.append(str(exc))
+
+    root = Context()
+    await root.plugin(provide(Server, "server"))
+    await root.plugin(sneaky)
+    await settle()
+    assert errors and "without inject" in errors[0]
