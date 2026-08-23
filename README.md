@@ -48,28 +48,134 @@ asyncio.run(main())
 
 ## The one idea
 
-Here is a bug that is not a bug. A component adds a route to a shared server:
+Two plugins. One owns a `Server`. The other adds a route to it. Built up a step
+at a time, because two different layers are involved and mixing them up is the
+main way this gets confusing.
+
+### Step 1 — your class. plugkit is not involved yet.
 
 ```python
-def admin_api(ctx, config=None):
-    ctx.server.add_route("/admin", handle)
+class Server:
+    def __init__(self):
+        self.routes = {}
+
+    def add_route(self, path, handler):
+        self.routes[path] = handler
+
+    def remove_route(self, path):
+        self.routes.pop(path, None)
 ```
 
-Unload it. The route stays — nothing recorded who added it. The component can
-remove it by hand, and will get that right today and wrong in six months when a
-second route is added and only one list gets updated.
+Ordinary Python. `routes` is a plain dict. **plugkit does not know what a route
+is** and never will.
 
-That is not a missing feature, it is a missing invariant. So plugkit has one:
+### Step 2 — register one instance under a name
+
+```python
+await root.plugin(provide(Server, "server"))
+```
+
+That constructs a `Server()` and files it under the string `"server"`. From now
+on `ctx.server` (or `ctx["server"]`) hands you **that instance** — an ordinary
+object. `ctx.server.add_route(...)` is a plain method call, exactly like
+`my_server.add_route(...)`.
+
+### Step 3 — a second plugin that uses it
 
 ```python
 def admin_api(ctx, config=None):
-    return ctx.server.add_route("/admin", handle)     # returns its undo
+    ctx.server.add_route("/admin", lambda: "admin page")
+
 admin_api.inject = ["server"]
 ```
 
-The **fiber** — the object representing this plugin's lifetime — holds that undo
-and calls it on unload. You do not write teardown, cannot forget it, and cannot
-get it half-right.
+**`inject = ["server"]` is a precondition list.** It means: *do not run this
+function until something is registered under the name `"server"`.* Mount
+`admin_api` before any server exists and it simply sits there:
+
+```
+admin_api state: PENDING     <- no "server" service yet
+...register the Server...
+admin_api state: ACTIVE      <- precondition met, so it ran
+server.routes  : ['/admin']
+```
+
+It does two more things worth knowing. Reading a service you did **not** inject
+raises — so `inject` is also the permission list. And if `server` later goes
+away, `admin_api` is unloaded, because its precondition stopped holding.
+
+### Step 4 — the problem
+
+Unload `admin_api`:
+
+```python
+await fiber.dispose()
+print(list(root.server.routes))     # ['/admin']   <- still there
+```
+
+The plugin is gone. Its route is still in `server.routes`, pointing at a lambda
+that belongs to a plugin that no longer exists.
+
+The kernel did not clean it up **because the kernel never knew about it.**
+`routes` is your dict, `add_route` is your method. All plugkit ever saw was "some
+object is registered under the name `server`". Mutating somebody else's state is
+invisible to it.
+
+Keeping the two layers straight:
+
+| | |
+|---|---|
+| **plugkit's layer** | the *name* `"server"`, the *plugin* `admin_api`, the fact that one needs the other |
+| **your layer** | the `Server` class, the `add_route` method, the `routes` dict, the route itself |
+
+### Step 5 — the fix, and what it actually costs
+
+Return a function that undoes what you did:
+
+```python
+def admin_api(ctx, config=None):
+    ctx.server.add_route("/admin", lambda: "admin page")
+    return lambda: ctx.server.remove_route("/admin")     # <- the undo
+
+admin_api.inject = ["server"]
+```
+
+```
+['/admin']
+[]
+```
+
+**plugkit did not make `add_route` return a disposer.** It cannot — `Server` is
+your class and no kernel can change what your methods return. **You wrote that
+`lambda`,** and you always will.
+
+What you get is that the **fiber** — the object representing this plugin's
+lifetime — now holds it and calls it on unload. Which matters because unload
+happens for more reasons than you will remember to handle:
+
+- the `server` service was swapped for a different implementation
+- a config value the plugin was built from changed
+- a supervisor restarted the plugin after a failure
+- the app is shutting down
+- the file was edited and hot-reloaded
+
+A `try/finally` covers one of those. A hand-written `cleanup()` covers the ones
+you thought of. The fiber covers all of them, including the ones added next year.
+
+For several things to undo, `ctx.effect` collects each disposer and runs them in
+reverse on the way out, the way a stack unwinds:
+
+```python
+def admin_api(ctx, config=None):
+    def route(path, handler):
+        def install():
+            ctx.server.add_route(path, handler)
+            return lambda: ctx.server.remove_route(path)
+        return install
+
+    ctx.effect(route("/admin", admin_page))
+    ctx.effect(route("/health", health_check))
+```
 
 Everything else falls out:
 

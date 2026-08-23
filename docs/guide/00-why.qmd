@@ -50,19 +50,55 @@ makes individually, and the framework cannot check it.
 
 ## The one idea in plugkit
 
-**A registration returns its own undo, and something owns the undo.**
+**Say the undo once, next to the thing it undoes, and let the lifetime own it.**
 
 ```python
 def admin_api(ctx, config=None):
-    return ctx.server.add_route("/admin", handle)   # returns a disposer
+    ctx.server.add_route("/admin", handle)
+    return lambda: ctx.server.remove_route("/admin")     # the undo
+
 admin_api.inject = ["server"]
 ```
 
-`add_route` hands back a function that removes the route. `ctx` — really the
-*fiber*, the object representing this plugin's lifetime — keeps it. When the
-plugin unloads, for any reason, that function is called. The component author
-does not write teardown, cannot forget teardown, and cannot get teardown
-half-right.
+Be clear about what plugkit does and does not do here, because this is the part
+that is easy to misread.
+
+**It does not make `add_route` return a disposer.** `Server` is somebody else's
+plain class; no kernel can change what its methods return. You wrote that
+`lambda` yourself, and you always will.
+
+**What it does** is own it. The *fiber* — the object representing this plugin's
+lifetime — holds that function and calls it when the plugin unloads. You cannot
+forget it, because it is a return value rather than a separate method you might
+not write. And you cannot get it half-right, because it sits on the line below
+the thing it reverses instead of in a `deactivate` twenty lines away.
+
+That ownership is what is actually worth having, because unload happens for more
+reasons than you will remember to handle:
+
+- the `server` service was replaced by a different implementation
+- a config value the plugin was built from changed
+- a supervisor restarted the plugin after a failure
+- the whole composition is shutting down
+- the module was edited and hot-reloaded
+
+A `try/finally` covers one of those. A `deactivate` method covers the ones its
+author thought of. The fiber covers all of them, including the ones added later.
+
+For several things to undo, `ctx.effect` collects each disposer and runs them in
+reverse order on the way out — the same way a stack unwinds:
+
+```python
+def admin_api(ctx, config=None):
+    def route(path, handler):
+        def install():
+            ctx.server.add_route(path, handler)
+            return lambda: ctx.server.remove_route(path)
+        return install
+
+    ctx.effect(route("/admin", admin_page))
+    ctx.effect(route("/health", health_check))
+```
 
 Everything else follows from that:
 
