@@ -207,6 +207,13 @@ and disappear while the program runs. Measured against
 Choose a container when the answer to "what runs in this process" is decided at
 startup. Choose plugkit when it is not.
 
+plugkit does not supersede `dependency-injector`, `pluggy`, `iPOPO`, or even its
+own predecessor. It ships *fewer* features than any of them and replaces one
+thing: who owns a component's side effects.
+[What plugkit does not replace](docs/design/what-it-does-not-replace.qmd) is the
+feature-by-feature version, including the eight signalpy providers and all three
+of its transport adapters that have no replacement here.
+
 ## Four terms
 
 | Term | Definition |
@@ -697,6 +704,8 @@ component registered, so teardown was a promise each component made individually
 and the framework could not verify.
 
 `specs/03-plugkit-kernel/spec.md` records the decisions.
-`docs/history/2026-08-v1-book/` holds the earlier documentation.
+Its documentation was removed with it and is in git history at `23d1fdb`. One
+page survived, since the Signal engine it described still ships:
+[`docs/design/reactive-engine.qmd`](docs/design/reactive-engine.qmd).
 
 MIT.

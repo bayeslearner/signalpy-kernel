@@ -46,6 +46,13 @@ root.greeter.hello("world")          # "hello world"
 | [Plain components](guide/02-popo-components.qmd) | `provide()`, and a `ctx` your type checker understands |
 | [Tools and permission](guide/03-tools.qmd) | the five-stage pipeline, and why a guard has no allow |
 
+## Before you adopt it
+
+plugkit ships fewer features than `dependency-injector`, `pluggy`, `iPOPO`, or its
+own predecessor. It replaces one thing in each: who owns a component's side
+effects. [What plugkit does not replace](design/what-it-does-not-replace.qmd)
+compares them feature by feature.
+
 ## The one idea
 
 A component adds a route to a shared server, then unloads. The route stays,
@@ -63,5 +70,6 @@ microkernel with twelve decorators. It stays on PyPI and is retired. plugkit is
 not a version of it; it is a different design, and the reason for the break is
 that 1.0's components had to import the kernel and nothing owned their undo.
 
-The earlier documentation is preserved in the repository under
-[`docs/history/2026-08-v1-book/`](https://github.com/bayeslearner/plugkit/tree/main/docs/history/2026-08-v1-book).
+The earlier documentation was removed with the package. It is in git history at
+commit `23d1fdb`. One page survived: the Signal engine it described still ships
+as `plugkit.signals`, and is now [The reactive engine](design/reactive-engine.qmd).

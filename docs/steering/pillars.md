@@ -41,8 +41,16 @@ what exists. It grows as services are added, not before.
 forks, 0 watchers, 0 issues; the 14-day clone count of 8 is CI and the author's
 own machines. There was no user base to break, so `src/signalpy/` is deleted
 rather than deprecated. 0.4.0 remains on PyPI for prismi3, which pins it and
-vendors its own copy. The 1.0 book is preserved at
-`docs/history/2026-08-v1-book/`.
+vendors its own copy. Its documentation was removed too, since keeping a book for
+a deleted package makes the repository read as two systems; git history holds it
+at commit `23d1fdb`.
 
 **The next real risk is Packaging.** The name is claimed, nothing is published,
 and until a `pip install plugkit` works the adoptability argument is theoretical.
+
+**Scope is smaller than the predecessor's, on purpose and at a cost.** signalpy
+shipped nine providers and three transport adapters; plugkit ships four services
+and no transports. Auth, credentials, storage, tracing, workspace and the
+REST/MCP/CLI adapters have no replacement. `docs/design/what-it-does-not-replace.qmd`
+states this against `dependency-injector`, `pluggy` and `iPOPO` as well. Any
+claim that plugkit supersedes those is false and should not appear in the docs.

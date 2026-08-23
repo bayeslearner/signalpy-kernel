@@ -7,7 +7,11 @@ subtitle: "The five data structures, the tracking mechanism, and three scenarios
 > **You are here** (how it actually works inside `reactive.py`) →
 > [Threading Model](threading-model.qmd) (concurrency, async supersede).
 
-The entire reactive engine is one file: `src/signalpy/kernel/reactive.py` (~600 lines).
+The entire reactive engine is one file: `src/plugkit/signals.py` (597 lines).
+
+It has no import from the kernel and can be used on its own. `ReactiveService`
+is the plugin that binds it to fiber lifetime, so a subscription is disposed with
+the plugin that created it.
 This page explains how it works internally — the data structures, the tracking
 mechanism, and three worked scenarios.
 

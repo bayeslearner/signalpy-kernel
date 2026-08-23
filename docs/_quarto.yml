@@ -8,6 +8,7 @@ project:
     - index.qmd
     - guide/*.qmd
     - design/*.md
+    - design/*.qmd
     - steering/*.md
 
 website:
@@ -31,6 +32,10 @@ website:
         menu:
           - text: "Kernel architecture"
             href: design/kernel-architecture.md
+          - text: "The reactive engine"
+            href: design/reactive-engine.qmd
+          - text: "What it does not replace"
+            href: design/what-it-does-not-replace.qmd
           - text: "Pillars"
             href: steering/pillars.md
       - text: "GitHub"

@@ -492,7 +492,7 @@ sequenceDiagram
   - [x] 8.2 Write `docs/design/kernel-architecture.md` — the anchor this spec names
     - **Depends**: 8.1
   - [x] 8.3 Teach plugkit in the Quarto book: the model, plugins, POPO bindings, tools
-    - Four chapters; the 1.0 book preserved at `docs/history/2026-08-v1-book/`
+    - Four chapters. The 1.0 book was removed in the cleanup sprint; git history holds it
     - **Depends**: 8.2 · **Pillar**: Teaching 🔴 → 🟡
 
 - [x] 9. Retire signalpy and rename
