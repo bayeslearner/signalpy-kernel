@@ -60,10 +60,12 @@ modules and the language has no unload — so ecosystems built around load-once
 rather than solving retraction. [`iPOPO`](https://ipopo.readthedocs.io), a port
 of OSGi, is the main exception.
 
-Searching for prior art in August 2026 returned Cordis ports and nothing else
-that owns a component's side effects. `stevedore`'s own documentation describes
-itself as building on entry points to avoid "creating yet another extension
-mechanism", which is discovery, not lifetime.
+This describes the established ecosystem. It is not true of the frontier: two
+Python ports of DeepSeek Harness do own component effects, and both have
+essentially no users — [havocio/dsh-python](https://github.com/havocio/dsh-python)
+at 0 stars and [Lxxz666/DSH-wanter-python](https://github.com/Lxxz666/DSH-wanter-python)
+at 1, against the parent project's 187,000. Measured and compared in
+[the port survey](docs/history/2026-08-23-python-dsh-port-landscape.md).
 
 ## Why one rule is enough to build on
 
