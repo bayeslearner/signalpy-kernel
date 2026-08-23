@@ -57,7 +57,7 @@ from .cordis import (  # noqa: F401
 )
 from .cordis.events import AggregateError, EventsService, is_bailed  # noqa: F401
 from .cordis.utils import this_  # noqa: F401
-from .binding import bind, provide, snake_case  # noqa: F401
+from .binding import bind, plugin, provide, snake_case  # noqa: F401
 from .signals import Computed, Effect, Signal, batch, is_stale  # noqa: F401
 
 # The shipped services. They have no privileged status — each is an ordinary
@@ -96,6 +96,7 @@ __all__ = [
     "Loader",
     # bindings — plain classes become services without importing the kernel
     "provide",
+    "plugin",
     "bind",
     "snake_case",
     # signals — a standalone library, no kernel involved

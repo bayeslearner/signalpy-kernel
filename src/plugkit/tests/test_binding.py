@@ -320,3 +320,17 @@ async def test_the_service_name_is_the_link_not_the_class():
     await root.plugin(provide(Greeter, "greeter", needs=["database"]))
     await settle()
     assert root.greeter.hello("x") == "hello x"
+
+
+def test_the_public_surface_is_importable():
+    """Everything the docs tell a reader to import must import.
+
+    `plugin` was documented and not exported; `from plugkit import plugin`
+    raised ImportError.
+    """
+    import plugkit
+
+    for name in plugkit.__all__:
+        assert hasattr(plugkit, name), f"{name} is in __all__ but not importable"
+
+    from plugkit import Context, plugin, provide, bind, snake_case  # noqa: F401

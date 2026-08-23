@@ -106,37 +106,39 @@ then supplies one, then takes it away again.
 
 ```python
 import asyncio
+
 from plugkit import Context, provide
 
 
 class Database:
-    def __init__(self, dsn="sqlite://"):
+    def __init__(self, dsn: str = "sqlite://") -> None:
         self.dsn = dsn
 
 
 class Greeter:
-    def __init__(self, database):
+    def __init__(self, database: Database) -> None:
         self.database = database
 
-    def hello(self, name):
+    def hello(self, name: str) -> str:
         return f"hello {name}, via {self.database.dsn}"
 
 
-async def main():
+async def main() -> None:
     root = Context()
 
-    # Register the greeter first. It needs a database, and none exists yet.
+    # Registering the greeter checks its dependencies first. `database` is not
+    # there, so nothing is loaded and the fiber is left waiting.
     greeter = await root.plugin(provide(Greeter, "greeter", needs=["database"]))
-    print("greeter" in root)                 # False — it is waiting
+    print("greeter" in root)                 # False
 
     # The database arrives, which unblocks the greeter.
     database = await root.plugin(provide(Database, "database"))
-    await greeter                            # wait for the greeter to finish loading
+    await greeter                            # wait for the greeter's own load
     print(root.greeter.hello("world"))       # hello world, via sqlite://
 
     # Take the database away.
     await database.dispose()
-    print("greeter" in root)                 # False — it stopped with its dependency
+    print("greeter" in root)                 # False
 
 asyncio.run(main())
 ```
@@ -147,32 +149,35 @@ dependency was removed.
 
 ### What `await root.plugin(...)` waits for
 
-It waits for **that plugin's own load to finish**, and nothing else.
+`root.plugin(p)` does two things before it returns anything:
 
-`root.plugin(p)` returns a fiber, which is awaitable. Awaiting it suspends until
-`p`'s load transition settles, and re-raises if `p`'s function raised.
+1. It constructs a **fiber** for `p` and checks every name in `p`'s `inject`.
+   This is synchronous.
+2. If any name is missing, it stops there. The fiber is `PENDING` and no load is
+   scheduled.
+   If every name is present, it schedules the load.
 
-| Situation | What the await does |
+The fiber it returns is awaitable. Awaiting it waits for **that fiber's own
+load**, and re-raises if `p`'s function raised.
+
+| State when `plugin()` returns | What `await` does |
 |---|---|
-| `p`'s function runs for 200ms | blocks for 200ms |
-| `p`'s dependencies are missing | returns immediately. `p` never ran, so there is no load to wait for. The fiber is `PENDING` |
-| `p` unblocks some other plugin `q` | returns when `p` is loaded. `q` is still `LOADING` at that moment |
+| `PENDING` — a dependency was missing | returns at once. No load was scheduled, so there is nothing to wait for. |
+| `LOADING` — dependencies were satisfied | waits for `p`'s function to finish. A plugin that sleeps 200ms blocks for 200ms. |
 
-The third row is why the example writes `await greeter` after mounting the
-database. Mounting the database returns as soon as the *database* is active; the
-greeter's reload is scheduled separately and has not run yet. Awaiting the
-greeter's own fiber waits for it.
+Loading `p` may satisfy some *other* plugin `q`. `q` is a separate fiber with a
+separate load, and this await does not cover it:
 
 ```python
 database = await root.plugin(provide(Database, "database"))
-root.greeter                # AttributeError — greeter is still LOADING
-await greeter
-root.greeter                # the Greeter instance
+root.greeter                # None — the greeter is still LOADING
+await greeter               # now wait for the greeter's own fiber
+root.greeter.hello("world")
 ```
 
 `await fiber.dispose()` has no such gap. It waits for the unload to complete,
 including the unload it cascades to dependents, which is why the last line of the
-example needs nothing after it.
+quick start needs nothing after it.
 
 ## Should you use a DI container instead?
 
@@ -223,12 +228,17 @@ rest of this section fixes that.
 `Server` is your class. The kernel has no knowledge of its contents.
 
 ```python
+from typing import Callable
+
+
 class Server:
-    def __init__(self):
-        self.routes = {}
-    def add_route(self, path, handler):
+    def __init__(self) -> None:
+        self.routes: dict[str, Callable[[], str]] = {}
+
+    def add_route(self, path: str, handler: Callable[[], str]) -> None:
         self.routes[path] = handler
-    def remove_route(self, path):
+
+    def remove_route(self, path: str) -> None:
         self.routes.pop(path, None)
 ```
 
@@ -241,13 +251,22 @@ await root.plugin(provide(Server, "server"))
 `ctx.server` returns that instance. `type(ctx.server)` is `Server`.
 `ctx.server.add_route(...)` is a normal method call.
 
-A second plugin adds a route:
+A second plugin adds a route. `@plugin` marks the function and carries its
+dependency list; annotating `ctx` with a Protocol gives the body completion and
+type checking:
 
 ```python
-def admin_api(ctx, config=None):
-    ctx.server.add_route("/admin", lambda: "admin page")
+from typing import Any, Protocol
+from plugkit import plugin
 
-admin_api.inject = ["server"]
+
+class ServerDeps(Protocol):
+    server: Server
+
+
+@plugin
+def admin_api(ctx: ServerDeps, config: Any = None) -> None:
+    ctx.server.add_route("/admin", lambda: "admin page")
 ```
 
 Unload it:
@@ -262,14 +281,23 @@ recorded it. `routes` is your dict and `add_route` is your method. The kernel
 recorded one fact: an object is registered under `"server"`, and `admin_api`
 requires it.
 
-Return a function that reverses the change:
+Return a function that reverses the change. `@plugin` carries the dependency
+list, and typing the `ctx` parameter with a Protocol gives the whole plugin
+completion and type checking:
 
 ```python
-def admin_api(ctx, config=None):
+from typing import Any, Callable, Protocol
+from plugkit import plugin
+
+
+class ServerDeps(Protocol):
+    server: Server
+
+
+@plugin
+def admin_api(ctx: ServerDeps, config: Any = None) -> Callable[[], None]:
     ctx.server.add_route("/admin", lambda: "admin page")
     return lambda: ctx.server.remove_route("/admin")
-
-admin_api.inject = ["server"]
 ```
 
 Mounting and then disposing the plugin now prints:

@@ -333,3 +333,50 @@ async def test_reading_a_service_not_in_inject_raises():
     await root.plugin(sneaky)
     await settle()
     assert errors and "without inject" in errors[0]
+
+
+async def test_the_typed_disposer_example_runs():
+    """The README's disposer example, annotated and using @plugin."""
+    from typing import Any, Callable, Protocol
+
+    from plugkit import plugin
+
+    class TypedServer:
+        def __init__(self) -> None:
+            self.routes: dict[str, Callable[[], str]] = {}
+
+        def add_route(self, path: str, handler: Callable[[], str]) -> None:
+            self.routes[path] = handler
+
+        def remove_route(self, path: str) -> None:
+            self.routes.pop(path, None)
+
+    class ServerDeps(Protocol):
+        server: TypedServer
+
+    @plugin
+    def admin_api(ctx: ServerDeps, config: Any = None) -> Callable[[], None]:
+        ctx.server.add_route("/admin", lambda: "admin page")
+        return lambda: ctx.server.remove_route("/admin")
+
+    assert admin_api["inject"] == ["server"], admin_api["inject"]
+
+    root = Context()
+    await root.plugin(provide(TypedServer, "server"))
+    fiber = await root.plugin(admin_api)
+    await settle()
+    assert list(root.server.routes) == ["/admin"]
+
+    await fiber.dispose()
+    await settle()
+    assert list(root.server.routes) == []
+
+
+async def test_plugin_returns_pending_before_awaiting():
+    """The README says the dependency check happens inside plugin(), not await."""
+    from plugkit import FiberState
+
+    root = Context()
+    fiber = root.plugin(provide(Greeter, "greeter", needs=["database"]))
+    assert fiber.state is FiberState.PENDING, "the check did not run during plugin()"
+    assert fiber.inertia is None, "a load was scheduled despite a missing dependency"
