@@ -126,17 +126,16 @@ async def main():
     root = Context()
 
     # Register the greeter first. It needs a database, and none exists yet.
-    await root.plugin(provide(Greeter, "greeter", needs=["database"]))
+    greeter = await root.plugin(provide(Greeter, "greeter", needs=["database"]))
     print("greeter" in root)                 # False — it is waiting
 
-    # The database arrives. The greeter is constructed and registered.
+    # The database arrives, which unblocks the greeter.
     database = await root.plugin(provide(Database, "database"))
-    await asyncio.sleep(0)
+    await greeter                            # wait for the greeter to finish loading
     print(root.greeter.hello("world"))       # hello world, via sqlite://
 
     # Take the database away.
     await database.dispose()
-    await asyncio.sleep(0)
     print("greeter" in root)                 # False — it stopped with its dependency
 
 asyncio.run(main())
@@ -145,6 +144,35 @@ asyncio.run(main())
 Three things happened that nobody wrote code for. The greeter waited instead of
 failing. It was constructed once its dependency existed. It stopped when that
 dependency was removed.
+
+### What `await root.plugin(...)` waits for
+
+It waits for **that plugin's own load to finish**, and nothing else.
+
+`root.plugin(p)` returns a fiber, which is awaitable. Awaiting it suspends until
+`p`'s load transition settles, and re-raises if `p`'s function raised.
+
+| Situation | What the await does |
+|---|---|
+| `p`'s function runs for 200ms | blocks for 200ms |
+| `p`'s dependencies are missing | returns immediately. `p` never ran, so there is no load to wait for. The fiber is `PENDING` |
+| `p` unblocks some other plugin `q` | returns when `p` is loaded. `q` is still `LOADING` at that moment |
+
+The third row is why the example writes `await greeter` after mounting the
+database. Mounting the database returns as soon as the *database* is active; the
+greeter's reload is scheduled separately and has not run yet. Awaiting the
+greeter's own fiber waits for it.
+
+```python
+database = await root.plugin(provide(Database, "database"))
+root.greeter                # AttributeError — greeter is still LOADING
+await greeter
+root.greeter                # the Greeter instance
+```
+
+`await fiber.dispose()` has no such gap. It waits for the unload to complete,
+including the unload it cascades to dependents, which is why the last line of the
+example needs nothing after it.
 
 ## Should you use a DI container instead?
 

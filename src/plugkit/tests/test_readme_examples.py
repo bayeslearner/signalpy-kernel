@@ -42,17 +42,53 @@ async def test_quickstart():
     """The three claims the quickstart makes, in order."""
     root = Context()
 
-    await root.plugin(provide(Greeter, "greeter", needs=["database"]))
-    await settle()
+    greeter = await root.plugin(provide(Greeter, "greeter", needs=["database"]))
     assert "greeter" not in root, "it did not wait for its dependency"
 
     database = await root.plugin(provide(Database, "database"))
-    await settle()
+    await greeter
     assert root.greeter.hello("world") == "hello world, via sqlite://"
 
     await database.dispose()
-    await settle()
     assert "greeter" not in root, "it did not stop with its dependency"
+
+
+async def test_what_await_on_a_mount_waits_for():
+    """The three rows of the README table."""
+    from plugkit import FiberState
+    import time
+
+    root = Context()
+
+    async def slow(ctx, config=None):
+        await asyncio.sleep(0.2)
+
+    started = time.monotonic()
+    await root.plugin(slow)
+    assert time.monotonic() - started >= 0.19, "await did not block on a slow plugin"
+
+    root = Context()
+    started = time.monotonic()
+    greeter = await root.plugin(provide(Greeter, "greeter", needs=["database"]))
+    assert time.monotonic() - started < 0.05
+    assert greeter.state is FiberState.PENDING
+
+    await root.plugin(provide(Database, "database"))
+    assert greeter.state is FiberState.LOADING, "the dependent was already active"
+    await greeter
+    assert greeter.state is FiberState.ACTIVE
+
+
+async def test_dispose_needs_no_extra_wait():
+    """`await fiber.dispose()` covers the cascade to dependents."""
+    root = Context()
+    await root.plugin(provide(Greeter, "greeter", needs=["database"]))
+    database = await root.plugin(provide(Database, "database"))
+    await settle()
+    assert "greeter" in root
+
+    await database.dispose()
+    assert "greeter" not in root, "dispose returned before the cascade finished"
 
 
 async def test_awaiting_a_pending_plugin_returns():
