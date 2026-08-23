@@ -40,6 +40,10 @@ providers = ["pyyaml>=6.0"]
 # Transport adapters
 rest = ["fastapi>=0.100", "uvicorn>=0.20"]
 mcp = []  # MCP SDK — add when pinned
+# 2.0: config loading (YAML/env/pydantic layering) — optional, degrades to dict+YAML
+config = ["dependency-injector>=4.41"]
+# 2.0: hot module replacement for the plugin loader
+hmr = ["watchdog>=4.0"]
 cli = ["click>=8.0"]
 # Observability
 tracing = [
@@ -56,10 +60,12 @@ dev = [
     "pytest>=7.0",
     "pytest-asyncio>=0.21",
     "httpx>=0.24",  # for FastAPI ASGI integration tests
+    "dependency-injector>=4.41",  # 2.0 ConfigService
+    "watchdog>=4.0",  # 2.0 loader HMR
 ]
 # Everything
 all = [
-    "signalpy-kernel[providers,rest,cli,tracing,dev]",
+    "signalpy-kernel[providers,rest,cli,tracing,config,hmr,dev]",
 ]
 
 [tool.hatch.build.targets.wheel]

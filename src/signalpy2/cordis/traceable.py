@@ -9,6 +9,7 @@ wrapper classes instead of proxies.
 from __future__ import annotations
 
 import functools
+import inspect
 import types
 from typing import Any, Optional
 
@@ -138,13 +139,29 @@ class Traceable:
             return None
 
         inner = getattr(value, name)
-        if not callable(inner):
+
+        # Rebind *methods* onto this view, so `self.ctx` inside them is the
+        # caller's context. Do not touch anything else.
+        #
+        # JS reaches this by `value.bind(...)`, where only functions are
+        # callable. Python has callable *data* — a dependency-injector
+        # Configuration, a functools.partial, a client with __call__ — and
+        # `callable(inner)` swept all of it into MethodType(instance, view),
+        # which silently turns the attribute into a function that calls the
+        # object with the view as its first argument.
+        #
+        # getattr_static bypasses the descriptor protocol: for a method it
+        # yields the plain function off the class, and for instance data it
+        # yields the stored object. Only the former is a method to rebind.
+        # staticmethod/classmethod land here as their wrapper objects, not as
+        # functions, and are correctly left alone — they take no `self`.
+        raw = inspect.getattr_static(value, name, None)
+        if not inspect.isfunction(raw):
             return inner
 
-        func = getattr(inner, "__func__", inner)
         if tracker.get("noShadow"):
-            return types.MethodType(func, self)
-        return self._shadow_bind(func)
+            return types.MethodType(raw, self)
+        return self._shadow_bind(raw)
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name.startswith("_cordis_"):

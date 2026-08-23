@@ -52,6 +52,9 @@ from .cordis import (  # noqa: F401
 )
 from .cordis.events import AggregateError, EventsService, is_bailed  # noqa: F401
 from .cordis.utils import this_  # noqa: F401
+from .config import ConfigService  # noqa: F401
+from .reactive import Computed, Effect, ReactiveService, Signal, batch  # noqa: F401
+from .supervision import Policy, SupervisorService  # noqa: F401
 
 __all__ = [
     # kernel
@@ -69,6 +72,15 @@ __all__ = [
     "Logger",
     # composition
     "Loader",
+    # grafts — plugins, mount the ones you want
+    "ReactiveService",
+    "Signal",
+    "Computed",
+    "Effect",
+    "batch",
+    "SupervisorService",
+    "Policy",
+    "ConfigService",
     # dispatch
     "this_",
     "is_bailed",
