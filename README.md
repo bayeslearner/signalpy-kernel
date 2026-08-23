@@ -22,6 +22,66 @@ Four services ship alongside, each an ordinary part you mount or leave out:
 configuration, reactive values, supervised restarts, and a tool registry with a
 permission pipeline.
 
+## Why this is not already in Python
+
+Python has three of the four pieces.
+
+| Piece | Provided by |
+|---|---|
+| **Discovery** — find installed plugins | entry points (`importlib.metadata`), `stevedore` |
+| **Dispatch** — call into plugin code | `pluggy`, the plugin system behind pytest |
+| **Construction** — build objects and pass in dependencies | `injector`, `dependency-injector`, `lagom`, `svcs` |
+| **Lifetime ownership** — undo everything a plugin did | mostly absent |
+
+The fourth is the gap. `pluggy` can unregister a plugin's hooks, and
+`dependency-injector`'s `Resource` provider can shut down one object it built.
+Neither tracks what the plugin *did*: the route it added to a shared server, the
+listener it attached, the connection it opened, the background task it started.
+
+Running the pluggy case makes the boundary concrete:
+
+```python
+pm.register(MyPlugin(), name="mine")
+pm.hook.startup()                        # the plugin writes shared_routes["/admin"]
+
+pm.unregister(name="mine")
+pm.get_plugin("mine")                    # None  — the hooks are gone
+shared_routes                            # {'/admin': 'handler'}  — the effect is not
+```
+
+That is not a defect in pluggy. Dispatching hooks is what pluggy is for. But it
+means cleanup is a method you write and remember to call, and no framework can
+check that you wrote it correctly.
+
+Two reasons the gap persisted. Python's deployment model is restart-oriented: you
+edit a file and restart the process, so few libraries needed to remove a
+component from a live program. And `import` is permanent — `sys.modules` caches
+modules and the language has no unload — so ecosystems built around load-once
+rather than solving retraction. [`iPOPO`](https://ipopo.readthedocs.io), a port
+of OSGi, is the main exception.
+
+Searching for prior art in August 2026 returned Cordis ports and nothing else
+that owns a component's side effects. `stevedore`'s own documentation describes
+itself as building on entry points to avoid "creating yet another extension
+mechanism", which is discovery, not lifetime.
+
+## Why one rule is enough to build on
+
+The rule is that a registration returns its undo, and the fiber owns the undo.
+Three capabilities are consequences of it rather than separate features:
+
+| Capability | Derivation |
+|---|---|
+| Hot reload | unload, then apply. Unload removes everything, so there is no reload machinery to write. |
+| Dependency-driven activation | start when a dependency appears, stop when it leaves. Requires only that a part can be stopped cleanly. |
+| Implementation swapping | unload the dependents, apply them against the new object. |
+
+The same rule holds at scale. DeepSeek Harness is roughly 457,000 lines of
+TypeScript across about 219 packages, all built on Cordis, the framework plugkit
+ports. Every capability there is a plugin: the model adapter, the conversation
+log, the permission system, the sandbox, and the main agent loop. Replacing the
+agent loop means mounting a different plugin, not editing the framework.
+
 ## When to use it
 
 Use plugkit when parts of your program need to appear and disappear while it
@@ -173,7 +233,7 @@ every unload path:
 - the module is edited and hot-reloaded
 
 To reverse more than one change, use `ctx.effect`. It stores each disposer and
-calls them in reverse order.
+starts them all on unload, in reverse registration order.
 
 ```python
 def admin_api(ctx, config=None):

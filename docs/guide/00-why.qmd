@@ -77,8 +77,8 @@ Unload happens for more reasons than you would handle by hand:
 `try/finally` covers one. A `deactivate` method covers the ones its author
 thought of.
 
-Several undos: `ctx.effect` collects each and runs them in reverse, the way a
-stack unwinds.
+Several undos: `ctx.effect` collects each and starts them in reverse
+registration order on unload.
 
 ```python
 def admin_api(ctx, config=None):

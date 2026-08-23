@@ -52,6 +52,9 @@ result.value     # whatever execute returned
 
 ## The five stages
 
+Each stage is an extension point. The list names the event, its dispatch mode,
+and what a listener may return.
+
 ```
 1. tools/pre-execute    waterfall    Allow | Deny | Ask
 2. ctx.tools.guard()    monotonic    a reason string, or None
@@ -103,6 +106,8 @@ approval.inject = ["tools"]
 ```
 
 ### Stage 2 — guards, and why they have no allow
+
+A guard inspects the call and either denies it or stays silent:
 
 ```python
 def safety(ctx, config=None):
@@ -173,6 +178,8 @@ operation shares one clock; *inner* means each attempt gets its own.
 
 ### Stage 4 — changing the result
 
+A post-execute listener receives the result and may replace or reject it:
+
 ```python
 def redact(ctx, config=None):
     async def scrub(execution, result, next_):
@@ -200,7 +207,7 @@ audit.inject = ["tools"]
 Stage 5 fires on **every** outcome, including denials. An audit that only sees
 successes is not an audit.
 
-## The whole point, in one example
+## Three plugins that never heard of each other
 
 Three plugins that have never heard of each other:
 

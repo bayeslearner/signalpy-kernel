@@ -63,5 +63,5 @@ microkernel with twelve decorators. It stays on PyPI and is retired. plugkit is
 not a version of it; it is a different design, and the reason for the break is
 that 1.0's components had to import the kernel and nothing owned their undo.
 
-The 1.0 documentation is preserved under
-[History](history/2026-08-v1-book/guide/00-layer-rules.qmd).
+The earlier documentation is preserved in the repository under
+[`docs/history/2026-08-v1-book/`](https://github.com/bayeslearner/plugkit/tree/main/docs/history/2026-08-v1-book).

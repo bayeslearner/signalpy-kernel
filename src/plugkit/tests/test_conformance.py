@@ -100,7 +100,11 @@ async def test_waterfall_vetoes_when_next_is_not_called():
 
 
 async def test_unload_is_total():
-    """fiber.ts:_unload — disposers run in reverse, and nothing survives."""
+    """fiber.ts:_unload — disposers start in reverse, and nothing survives.
+
+    Synchronous disposers here, so the observed order is exact reverse. Async
+    disposers run concurrently; see test_disposal_ordering.
+    """
     log = []
     root = Context()
     await root.plugin(make_consumer(log))
@@ -147,3 +151,43 @@ async def test_duplicate_provide_in_one_scope_raises():
     await settle()
     with pytest.raises(Exception, match="registered"):
         await root.plugin(make_db(), {"tag": "B"})
+
+
+async def test_disposal_ordering_sync_versus_async():
+    """`fiber.py:_start_unload` gathers disposers rather than awaiting in turn.
+
+    Disposers are started in reverse registration order. Synchronous ones
+    therefore complete in exact reverse. An async disposer yields at its first
+    await, so a later-started one can finish first — completion order follows
+    duration, not registration. The docs must not promise LIFO for async.
+    """
+    order = []
+    root = Context()
+
+    def plugin(ctx, config=None):
+        def sync_effect(n):
+            def install():
+                return lambda: order.append(f"sync{n}")
+            return install
+
+        def async_effect(n, delay):
+            def install():
+                async def dispose():
+                    await asyncio.sleep(delay)
+                    order.append(f"async{n}")
+                return dispose
+            return install
+
+        ctx.effect(sync_effect(1))
+        ctx.effect(sync_effect(2))
+        ctx.effect(async_effect(3, 0.03))
+        ctx.effect(async_effect(4, 0.01))
+
+    fiber = await root.plugin(plugin)
+    await fiber.dispose()
+    for _ in range(10):
+        await asyncio.sleep(0.01)
+
+    assert order[:2] == ["sync2", "sync1"], "sync disposers are not exact reverse"
+    assert order[2:] == ["async4", "async3"], "async completion is not by duration"
+    assert order != ["async4", "async3", "sync2", "sync1"], "this would be strict LIFO"

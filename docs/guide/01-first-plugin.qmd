@@ -55,6 +55,8 @@ async def main():
 ::: {.callout-important}
 ## You cannot read a service you did not inject
 
+Reading a name absent from `inject` raises, even when the service exists:
+
 ```python
 def sneaky(ctx, config=None):
     ctx.database.query("...")     # AttributeError: cannot get property
@@ -86,9 +88,16 @@ def watcher(ctx, config=None):
 ```
 
 `ctx.effect(fn, label)` calls `fn` immediately. Whatever `fn` returns is kept by
-your fiber as the undo. On unload, every undo runs — **in reverse order**, the
-same way a stack unwinds, so things are released in the opposite order they were
-acquired.
+your fiber as the undo, and is called on unload.
+
+Disposers are **started in reverse registration order**, and then run
+concurrently (`fiber.py` uses `asyncio.gather`). With synchronous disposers that
+produces exact reverse order, because each finishes before the next begins. An
+**async** disposer yields at its first `await`, so a later one can finish first:
+completion order is decided by how long each takes, not by registration order.
+
+If two teardown steps must happen in sequence, put both in one disposer and
+`await` them there. Do not rely on ordering between separate effects.
 
 For a single teardown you can skip the ceremony and just return it:
 
@@ -181,7 +190,8 @@ Three things happened that nobody wrote code for:
 
 1. Disposing the **database** unloaded the **feature**, because the feature
    declared it.
-2. The feature's effects released in reverse order — 2 before 1.
+2. The feature's effects released in reverse order — 2 before 1. Both are
+   synchronous here, so reverse order is exact.
 3. The feature's event listener stopped receiving events, without an
    unregister call anywhere.
 
@@ -198,6 +208,8 @@ the behaviour above stop feeling like magic:
 | `FAILED` | the plugin function raised |
 | `UNLOADING` | disposers are running |
 | `DISPOSED` | gone for good, cannot restart |
+
+Read the current state from the fiber:
 
 ```python
 from plugkit import FiberState

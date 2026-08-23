@@ -1,6 +1,14 @@
 project:
   type: website
   output-dir: _site
+  render:
+    # Current docs only. docs/history/ holds the retired signalpy book and the
+    # April design notes; both stay in the repo and out of the site.
+    - "!history/"
+    - index.qmd
+    - guide/*.qmd
+    - design/*.md
+    - steering/*.md
 
 website:
   title: "plugkit"
@@ -25,10 +33,8 @@ website:
             href: design/kernel-architecture.md
           - text: "Pillars"
             href: steering/pillars.md
-      - text: "History"
-        menu:
-          - text: "The retired signalpy book"
-            href: history/2026-08-v1-book/guide/00-layer-rules.qmd
+      - text: "GitHub"
+        href: https://github.com/bayeslearner/plugkit
 
   sidebar:
     - title: "Guide"

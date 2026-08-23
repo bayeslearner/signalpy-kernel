@@ -34,6 +34,8 @@ once and returns a disposer. The fiber holds the disposer.
 
 ## The tiers
 
+Four levels, ordered by what may depend on what.
+
 ```
 plugkit/
   cordis/        the kernel — nothing above it may be assumed present

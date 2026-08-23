@@ -75,6 +75,8 @@ No kernel. No fixture. No `async`.
 
 ## Naming the service — and why you must
 
+The second argument to `provide()` is the name the result is registered under:
+
 ```python
 provide(Greeter, "greeter")
 ```
@@ -109,6 +111,8 @@ provide(SqliteDatabase,   "database")     # tomorrow — no dependent changes
 
 ### Two spellings for the same lookup
 
+Attribute access and subscript access resolve identically:
+
 ```python
 root.database        # attribute
 root["database"]     # subscript — identical lookup, same rules
@@ -120,6 +124,8 @@ reads it as type-based injection. It is also the only way to reach a service
 whose name is not a valid Python identifier — `root["db.primary"]`.
 
 ### And `needs` is strings too
+
+`needs` maps a constructor keyword to a service name:
 
 ```python
 needs=["database"]              # kwarg `database` gets service `database`
@@ -297,7 +303,7 @@ What plugkit does to soften the cost:
 A fair question at this point: if components are plain and `provide()` is just a
 function, **is dependency injection itself a plugin?**
 
-Mostly yes, and the split is worth knowing.
+Mostly yes. The split falls in a specific place.
 
 **Below the line — the kernel, and it cannot be a plugin.** Resolution (`ctx.database`
 finding the object) and lifetime (when your plugin runs, and unwinding it when a

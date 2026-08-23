@@ -52,6 +52,8 @@ anything that mirrors a dsh subsystem.
 
 ## Layout
 
+Four levels, ordered by what may depend on what.
+
 ```
 src/plugkit/
   cordis/       the kernel — nothing above it may be assumed present
@@ -71,6 +73,8 @@ that because a fiber must be able to report its own load failure.
 make a service load-bearing, which is the tier this design deleted.
 
 ## Commands
+
+Run the tests and add dependencies with `uv`:
 
 ```bash
 uv run pytest src/plugkit/tests -q                 # the gate
@@ -95,7 +99,7 @@ from `plugkit` and must be constructible in a test with no fixtures.
 that *are* kernel surface — the shipped services. Application code uses
 `provide()`.
 
-**A test asserts the property that makes a feature worth having**, not its API
+**A test asserts the property a feature exists to provide**, not its API
 surface. "A subscription dies with the plugin that made it" is a test; "effect()
 returns an object" is not.
 
