@@ -520,8 +520,34 @@ response. Without `ReactiveService` the binding still works and does not rebuild
 
 ## Typed contexts
 
-`Context.__getattr__` returns `Any`, because which services exist depends on which
-plugins are mounted. Annotate your own parameter instead.
+Cordis also resolves by name only. `reflect.get(name: string)` and
+`reflect.provide(name: string, value)` are the whole lookup, and nothing inspects
+a constructor or a type.
+
+Cordis code *looks* type-aware because TypeScript adds the types on top
+statically. Mounting the tools package runs a declaration merge:
+
+```ts
+// packages/core/tools/src/index.ts
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    tools: ToolRuntime          // now ctx.tools is typed everywhere
+  }
+}
+```
+
+That edits the shared `Context` interface at compile time. At runtime the lookup
+is still `store['tools']`. Cordis's own `Inject` type is keyed on
+`keyof Context & string` — strings, with the checker restricting which strings
+are valid.
+
+Python has no declaration merging, so plugkit does the same split with the tool
+Python has: **you annotate your own parameter with a Protocol.** The trade is
+that TypeScript's version is global and automatic, while a Protocol is declared
+per plugin and states exactly what that plugin uses.
+
+`Context.__getattr__` returns `Any`, because which services exist depends on
+which plugins are mounted.
 
 ```python
 from typing import Any, Protocol

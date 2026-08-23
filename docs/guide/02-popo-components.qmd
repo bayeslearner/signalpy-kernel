@@ -209,6 +209,14 @@ provide(Cache, "cache", close=False)       # nothing to tear down
 
 ## A `ctx` your type checker understands
 
+Cordis resolves by name only — `reflect.get(name: string)` is the whole lookup.
+Its code looks type-aware because TypeScript merges declarations into the shared
+`Context` interface at compile time (`interface Context { tools: ToolRuntime }`),
+while the runtime still reads `store['tools']`.
+
+Python has no declaration merging. plugkit makes the same split with a Protocol
+on your own parameter: typed at check time, resolved by name at run time.
+
 `Context.__getattr__` returns `Any`, because which services exist depends on
 which plugins are mounted, and no type system knows that at import time.
 
