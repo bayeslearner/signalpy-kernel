@@ -5,10 +5,8 @@ subtitle: "The bug that is not a bug"
 
 ## Start with a bug that is not a bug
 
-`plugkit` replaces `signalpy-kernel`, an earlier attempt at the same problem.
-Understanding why it was replaced is the fastest way to understand what plugkit
-does differently, so here is the old design doing exactly what it was built to
-do:
+`plugkit` replaces `signalpy-kernel`. Here is the old design, working as
+intended:
 
 ```python
 @component("http-server", version="1.0")
@@ -60,21 +58,15 @@ def admin_api(ctx, config=None):
 admin_api.inject = ["server"]
 ```
 
-Be clear about what plugkit does and does not do here, because this is the part
-that is easy to misread.
+**You write that lambda.** `add_route` does not return a disposer; `Server` is
+your class and no kernel can change what your methods return.
 
-**It does not make `add_route` return a disposer.** `Server` is somebody else's
-plain class; no kernel can change what its methods return. You wrote that
-`lambda` yourself, and you always will.
+The *fiber* — the object representing this plugin's lifetime — holds it and calls
+it on unload. It is a return value rather than a separate method, so there is
+nothing to forget, and it sits on the line below the call it reverses rather than
+in a `deactivate` twenty lines away.
 
-**What it does** is own it. The *fiber* — the object representing this plugin's
-lifetime — holds that function and calls it when the plugin unloads. You cannot
-forget it, because it is a return value rather than a separate method you might
-not write. And you cannot get it half-right, because it sits on the line below
-the thing it reverses instead of in a `deactivate` twenty lines away.
-
-That ownership is what is actually worth having, because unload happens for more
-reasons than you will remember to handle:
+Unload happens for more reasons than you would handle by hand:
 
 - the `server` service was replaced by a different implementation
 - a config value the plugin was built from changed
@@ -82,11 +74,11 @@ reasons than you will remember to handle:
 - the whole composition is shutting down
 - the module was edited and hot-reloaded
 
-A `try/finally` covers one of those. A `deactivate` method covers the ones its
-author thought of. The fiber covers all of them, including the ones added later.
+`try/finally` covers one. A `deactivate` method covers the ones its author
+thought of.
 
-For several things to undo, `ctx.effect` collects each disposer and runs them in
-reverse order on the way out — the same way a stack unwinds:
+Several undos: `ctx.effect` collects each and runs them in reverse, the way a
+stack unwinds.
 
 ```python
 def admin_api(ctx, config=None):
@@ -115,8 +107,6 @@ so nobody is left holding a stale object.
 
 ## Declarative versus imperative
 
-That is the real difference, and it is worth naming plainly.
-
 | | signalpy | plugkit |
 |---|---|---|
 | A component is | a class wearing decorators | a plain class |
@@ -127,19 +117,16 @@ That is the real difference, and it is worth naming plainly.
 
 The old design asks you to *describe* your component and trusts the kernel to do
 the right thing. plugkit asks you to *do* things and hands you the undo each
-time.
-
-The declarative version reads better in a slide. The imperative version is the
-one where the framework can actually guarantee something.
+time — which is what lets the framework guarantee teardown instead of hoping for
+it.
 
 ## "But now my class imports the framework"
 
-Correct, and that was the second complaint about the old design — a class covered in
-`@component`, `@provides`, `@requires` is no longer a plain Python object. You
-cannot construct it in a test without the kernel. You cannot lift it into another
-project. It has stopped being *yours*.
+Correct. A class covered in `@component`, `@provides`, `@requires` cannot be
+constructed in a test without the kernel, and cannot be lifted into another
+project.
 
-plugkit's answer is to separate the component from its registration:
+plugkit separates the component from its registration:
 
 ```python
 # services/greeter.py — imports nothing. Not a framework file.
@@ -170,13 +157,11 @@ The kernel is a port of **Cordis**, the plugin framework underneath
 open-source agent runtime, ~457,000 lines of TypeScript across ~219 packages,
 every one of them a Cordis plugin.
 
-That matters for a practical reason rather than a prestige one. Because plugkit
-matches Cordis's *semantics* — the same event names, the same dispatch modes, the
-same lifetime rules — dsh's documentation stays a working specification for
-anything built here. Its catalogue of 58 services, its five-stage tool pipeline,
-its file-system policy events: all of it describes a substrate that means the
-same thing in this kernel. A design ported from there is a design, not a
-translation.
+plugkit matches Cordis's *semantics* — the same event names, the same dispatch
+modes, the same lifetime rules — so dsh's documentation stays a working
+specification for anything built here. Its 58-service catalogue, its five-stage
+tool pipeline and its file-system policy events all describe a substrate that
+means the same thing in this kernel.
 
 `src/plugkit/VENDORED.md` records which port was vendored, why, and what was
 changed in it.

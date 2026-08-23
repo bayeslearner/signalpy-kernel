@@ -139,8 +139,7 @@ provide(Greeter, "greeter", needs={"db": "database"})            # kwarg `db` ge
 provide(Greeter, "greeter", needs=GreeterDeps)                   # a Protocol
 ```
 
-The third is worth explaining, because it removes a duplication the other two
-have.
+The third removes a duplication the other two have.
 
 ```python
 from typing import Protocol
@@ -271,11 +270,11 @@ Type-based resolution has a genuine advantage plugkit does not have: **it is
 rename-safe and IDE-navigable.** Rename the class and your editor updates every
 reference. There is no string to typo.
 
-The cost is coupling. To ask for a `Database` by type, you must **import**
-`Database` — so the consumer imports the provider. In a plugin system that is
-backwards: the whole point is that `admin_api` can ask for `server` without
-knowing which package supplies it, or whether one is loaded at all. Late binding
-needs a late-bound key, and a string is one.
+The cost is coupling. Asking for a `Database` by type means **importing**
+`Database`, so the consumer imports the provider. A plugin system needs the
+opposite: `admin_api` asks for `server` without knowing which package supplies
+it, or whether one is loaded at all. Late binding needs a late-bound key, and a
+string is one.
 
 There is a second reason here specifically: Cordis is string-keyed, and matching
 it is what keeps dsh's documentation valid for this kernel. A type-based layer

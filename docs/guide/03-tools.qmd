@@ -114,16 +114,14 @@ safety.inject = ["tools"]
 ```
 
 Return a reason to deny, `None` to stay out of the way. **There is no allow
-return value**, and that is the entire point.
+return value.**
 
-Consider what an allow would mean. Two plugins register guards; one denies, one
-allows. Which wins? Whichever ran last. So the answer would depend on mount
-order, and mount order in this kernel depends on when dependencies became
-available — which is to say, on timing. Your security rule would hold or not
-hold depending on how fast a database started.
+If there were: two guards, one denies, one allows — whichever ran last wins. Mount
+order here depends on when dependencies became available, so a security rule
+would hold or not hold depending on how fast a database started.
 
-With no allow, that question cannot arise. A denial from any guard is final,
-regardless of order, regardless of what stage 1 decided:
+With no allow, a denial from any guard is final, regardless of order and
+regardless of what stage 1 decided:
 
 ```python
 # stage 1 says allow. The guard still wins.
