@@ -204,6 +204,128 @@ async def test_binding_works_without_reactive_mounted():
     assert root.database.dsn == "one://", "rebuilt without ReactiveService mounted"
 
 
+async def test_a_context_manager_component_is_entered():
+    """Teardown must go through the protocol setup went through.
+
+    `__exit__` on an object that was never entered is a lock released without
+    being acquired, a transaction rolled back that never began. The binding used
+    to do exactly that, and the component could not tell.
+    """
+    log = []
+
+    class Pool:
+        def __enter__(self):
+            log.append("enter")
+            return self
+
+        def __exit__(self, *exc):
+            log.append("exit")
+
+    root = Context()
+    fiber = await root.plugin(provide(Pool, "pool"))
+    await settle()
+    assert log == ["enter"]
+
+    await fiber.dispose()
+    await settle()
+    assert log == ["enter", "exit"]
+
+
+async def test_the_service_is_what_enter_returned():
+    """The context-manager protocol says `__enter__`'s value is the resource."""
+
+    class Handle:
+        pass
+
+    handle = Handle()
+
+    class Opener:
+        def __enter__(self):
+            return handle
+
+        def __exit__(self, *exc):
+            pass
+
+    root = Context()
+    await root.plugin(provide(Opener, "resource"))
+    await settle()
+    assert root.resource is handle
+
+
+async def test_close_beats_the_context_manager_protocol():
+    """A component with both keeps using `close()`, and is not entered."""
+    log = []
+
+    class Both:
+        def close(self):
+            log.append("close")
+
+        def __enter__(self):
+            log.append("enter")
+            return self
+
+        def __exit__(self, *exc):
+            log.append("exit")
+
+    root = Context()
+    fiber = await root.plugin(provide(Both, "both"))
+    await settle()
+    await fiber.dispose()
+    await settle()
+    assert log == ["close"]
+
+
+async def test_an_async_only_context_manager_says_what_to_do():
+    """Entering needs an await, and apply is synchronous. Say so, don't guess."""
+
+    class AsyncPool:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            pass
+
+    root = Context()
+    fiber = root.plugin(provide(AsyncPool, "pool"))
+    with pytest.raises(TypeError, match="close="):
+        await fiber
+
+
+async def test_mount_config_cannot_shadow_an_injected_service():
+    """A mount config naming an injected service is a composition mistake.
+
+    It used to win silently: the constructor received the literal and the
+    service object was dropped, while the fiber went on declaring the dependency
+    and reloading when the real service was replaced. The caller cannot mean both
+    things, so the binding says so instead of picking one.
+    """
+    root = Context()
+    await root.plugin(provide(Database, "database"))
+    fiber = root.plugin(
+        provide(Greeter, "greeter", needs=["database"]), {"database": "not-a-database"}
+    )
+    with pytest.raises(TypeError, match="database"):
+        await fiber
+
+
+async def test_mount_config_still_overrides_a_config_argument():
+    """Only `needs` is protected. Overriding a config-derived kwarg is the point."""
+    root = Context()
+    await root.plugin(ConfigService, {"dict": {"greeter": {"prefix": "from-config"}}})
+    await root.plugin(provide(Database, "database"))
+    await root.plugin(
+        provide(
+            Greeter,
+            "greeter",
+            needs=["database"],
+            config={"prefix": ("greeter.prefix", "hello")},
+        ),
+        {"prefix": "from-mount"},
+    )
+    await settle()
+    assert root.greeter.prefix == "from-mount"
+
+
 async def test_bad_needs_type_is_loud():
     with pytest.raises(TypeError, match="must be a list"):
         provide(Greeter, "greeter", needs=42)

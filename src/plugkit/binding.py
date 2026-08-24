@@ -206,24 +206,45 @@ def _resolve_config(config: Any) -> dict[str, tuple[str, Any]]:
     return out
 
 
-def _find_closer(obj: Any, close: Any) -> Callable[[], Any] | None:
-    """The teardown callable for a constructed component, or None."""
+def _setup_teardown(obj: Any, close: Any) -> tuple[Any, Callable[[], Any] | None]:
+    """`(component_to_register, teardown_or_None)`.
+
+    A context manager is **entered here**, and what `__enter__` returned is what
+    gets registered — that is what the protocol says the resource is. Calling
+    `__exit__` on an object that was never entered is a lock released without
+    being acquired and a transaction rolled back that never began; the binding
+    used to do that, and the component had no way to tell.
+
+    An explicit `close=` and a `close`/`aclose`/`shutdown`/`dispose` method both
+    win over the protocol, so a component carrying both is not entered.
+    """
     if close is False:
-        return None
+        return obj, None
     if isinstance(close, str):
         method = getattr(obj, close, None)
         if method is None:
             raise AttributeError(f"{type(obj).__name__} has no method {close!r} to close with")
-        return method
+        return obj, method
     for name in ("close", "aclose", "shutdown", "dispose"):
         method = getattr(obj, name, None)
         if callable(method):
-            return method
-    if hasattr(obj, "__exit__"):
-        return lambda: obj.__exit__(None, None, None)
-    if hasattr(obj, "__aexit__"):
-        return lambda: obj.__aexit__(None, None, None)
-    return None
+            return obj, method
+    if hasattr(obj, "__enter__") and hasattr(obj, "__exit__"):
+        entered = obj.__enter__()
+        if entered is None:
+            raise TypeError(
+                f"{type(obj).__name__}.__enter__() returned None, so there is no "
+                f"component to register. Return the resource, or name the teardown "
+                f"with close=."
+            )
+        return entered, lambda: obj.__exit__(None, None, None)
+    if hasattr(obj, "__aenter__"):
+        raise TypeError(
+            f"{type(obj).__name__} is an async context manager, and entering it "
+            f"needs an await that construction does not have. Name the teardown "
+            f"with close=\"aclose\" (or whichever method), or close=False."
+        )
+    return obj, None
 
 
 def provide(
@@ -296,14 +317,27 @@ def provide(
         for kwarg, (key, default) in config_spec.items():
             kwargs[kwarg] = ctx.config.get(key, default)
         if isinstance(plugin_config, Mapping):
+            # A mount config may override a literal or a config-derived argument
+            # — that is what per-mount settings are for. It may not override an
+            # injected service: the fiber goes on declaring that dependency and
+            # reloading when its provider is replaced, so a literal in its place
+            # is a component holding something the kernel thinks it does not
+            # have. The caller cannot mean both, so neither is chosen silently.
+            shadowed = sorted(set(plugin_config) & set(wiring))
+            if shadowed:
+                raise TypeError(
+                    f"mount config for {name or service_name!r} sets "
+                    f"{', '.join(map(repr, shadowed))}, which "
+                    f"{'is' if len(shadowed) == 1 else 'are'} injected via needs. "
+                    f"Drop the key, or drop it from needs and pass the value in extra."
+                )
             kwargs.update(plugin_config)
 
-        component = factory(**kwargs)
+        component, closer = _setup_teardown(factory(**kwargs), close)
         ctx.provide(service_name, component)
 
         _watch_config(ctx, config_spec)
 
-        closer = _find_closer(component, close)
         if closer is None:
             return None
 

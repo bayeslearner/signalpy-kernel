@@ -350,18 +350,18 @@ None. This spec supersedes nothing.
 
 ## Tasks
 
-- [ ] 1. Code fixes
+- [x] 1. Code fixes
   - [x] 1.1 `points.get()` resolves by arrival, not sort position
     - **Depends**: —
     - **Requirements**: 1.1
     - **Properties**: Key lookup is arrival-ordered
     - **Pillar**: Kernel
-  - [ ] 1.2 `provide()` refuses a mount-config key colliding with `needs`
+  - [x] 1.2 `provide()` refuses a mount-config key colliding with `needs`
     - **Depends**: —
     - **Requirements**: 1.2
     - **Properties**: A binding never shadows a service
     - **Pillar**: Kernel, Adoptability
-  - [ ] 1.3 `_find_closer` enters a sync context manager; refuses an async-only one
+  - [x] 1.3 `_find_closer` enters a sync context manager; refuses an async-only one
     - **Depends**: —
     - **Requirements**: 1.3, 1.4
     - **Properties**: Teardown matches setup
