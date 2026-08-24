@@ -127,7 +127,7 @@ was built to be judged on.
 
 A fiber is in one of six states. The transitions are driven by one value.
 
-```mermaid
+```{mermaid}
 stateDiagram-v2
     [*] --> PENDING: mounted
     PENDING --> LOADING: every injected service present

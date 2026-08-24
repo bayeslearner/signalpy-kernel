@@ -25,7 +25,10 @@ jobs:
 
       - uses: quarto-dev/quarto-actions/setup@v2
         with:
-          version: 1.5.57
+          # Match the version the theme and the mermaid fences were verified
+          # against locally. On 1.5.57 the site publishes from a renderer nobody
+          # checked, which is the gap this sprint exists to close.
+          version: 1.7.32
 
       - name: Render Quarto site
         run: quarto render docs

@@ -37,7 +37,7 @@ anything that mirrors a dsh subsystem.
 ## Required reading (session start)
 
 1. `docs/steering/pillars.md` — what this project lives or dies on
-2. `docs/design/kernel-architecture.md` — the anchor every sprint conforms to
+2. `docs/design/kernel-architecture.qmd` — the anchor every sprint conforms to
 3. The head of the sprint queue in `specs/` — the lowest-numbered spec that is
    not CLOSED. That is where work is.
 

@@ -216,6 +216,46 @@ def test_no_doc_states_a_whole_suite_test_count():
     )
 
 
+# ── I7: a diagram on the site actually renders ────────────────────────────
+
+
+def _rendered_docs() -> list[Path]:
+    """The docs Quarto builds into the site, per `docs/_quarto.yml`'s render list.
+
+    Kept as a literal rather than parsed out of the YAML: adding a group to that
+    list should be a deliberate edit here too, because a doc that renders is a
+    doc whose diagrams and snippets are published.
+    """
+    files = [REPO / "docs/index.qmd"]
+    for pattern in ("docs/guide/*.qmd", "docs/design/*.md", "docs/design/*.qmd",
+                    "docs/steering/*.md"):
+        files += sorted(REPO.glob(pattern))
+    return [f for f in files if f.is_file()]
+
+
+def test_rendered_docs_use_the_executable_mermaid_fence():
+    """Quarto injects its mermaid runtime only for ```{mermaid}, not ```mermaid.
+
+    A plain ```mermaid fence still emits `<pre class="mermaid">`, so the build
+    succeeds, the page publishes, and the diagram shows as its own source text
+    with no error anywhere. Verified against Quarto 1.7.32: the curly form pulls
+    in `mermaid-init.js` and the plain form pulls in nothing.
+
+    This only applies to docs Quarto renders. `specs/` and `docs/history/` are
+    read on GitHub, which renders the *plain* form and not the curly one, so the
+    two sets want opposite fences and neither is wrong.
+    """
+    plain = []
+    for doc in _rendered_docs():
+        for number, line in enumerate(doc.read_text(encoding="utf-8").splitlines(), 1):
+            if line.strip() == "```mermaid":
+                plain.append(f"{_rel(doc)}:{number}")
+    assert not plain, (
+        "```mermaid on a rendered page publishes the diagram's source as text. "
+        "Use ```{mermaid}:\n  " + "\n  ".join(plain)
+    )
+
+
 # ── I2: a guide page imports what its code blocks name ────────────────────
 
 

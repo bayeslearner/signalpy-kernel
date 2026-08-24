@@ -707,7 +707,7 @@ uv run --extra dev --with pyright pytest src/plugkit/tests/test_typing.py
 `--extra dev` carries pytest and `pyyaml`; without it the loader and config-YAML
 tests cannot run. It is the set CI installs.
 
-- Architecture: [`docs/design/kernel-architecture.md`](docs/design/kernel-architecture.md)
+- Architecture: [`docs/design/kernel-architecture.qmd`](docs/design/kernel-architecture.qmd)
 - Project pillars: [`docs/steering/pillars.md`](docs/steering/pillars.md)
 - Current sprint: the head of [`specs/`](specs/)
 

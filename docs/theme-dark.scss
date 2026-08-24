@@ -1,7 +1,14 @@
-/* SignalPy docs — custom overrides for Quarto darkly theme
+/*-- scss:rules --*/
+
+/* plugkit docs — the dark half.
  *
- * The darkly theme body bg is ~#222. We push code blocks lighter (#2d333b)
- * with a visible left accent border so they pop against the page.
+ * Quarto compiles a theme-bracket file only for the theme that names it, so
+ * these rules never load in light mode and never have to fight `theme-light.scss`
+ * for specificity. `theme-neutral.css` holds what both halves share: layout,
+ * spacing, and shape.
+ *
+ * The darkly theme body bg is ~#222. Code blocks go lighter (#2d333b) with a
+ * left accent border so they separate from the page.
  */
 
 /* ── Page body: true dark ──────────────────────────────────────── */
@@ -16,17 +23,12 @@ pre.sourceCode {
   background-color: #2d333b !important;
   border: 1px solid #444c56 !important;
   border-left: 4px solid #58a6ff !important;
-  border-radius: 6px !important;
-  padding: 0.8em 1em !important;
 }
 
 /* Inline code: subtle highlight */
 code:not(.sourceCode) {
   background-color: #2d333b !important;
   color: #e6edf3 !important;
-  padding: 0.15em 0.4em !important;
-  border-radius: 4px !important;
-  font-size: 0.9em !important;
 }
 
 /* Code text color: bright.
@@ -88,8 +90,6 @@ pre:not(.sourceCode) {
   color: #e6edf3 !important;
   border: 1px solid #444c56 !important;
   border-left: 4px solid #3fb950 !important;
-  border-radius: 6px !important;
-  padding: 1em !important;
 }
 
 /* ── Mermaid diagrams: high contrast ─────────────────────────────
@@ -100,8 +100,6 @@ pre:not(.sourceCode) {
 .mermaid {
   background: #161b22 !important;
   border: 1px solid #444c56 !important;
-  border-radius: 8px !important;
-  padding: 1em !important;
 }
 /* All text-bearing elements */
 .mermaid text,
@@ -113,7 +111,6 @@ pre:not(.sourceCode) {
 .mermaid foreignObject div {
   color: #f0f3f6 !important;
   fill: #f0f3f6 !important;
-  font-weight: 500 !important;
 }
 /* edgeLabel backgrounds (the little label-on-arrow bg) */
 .mermaid .edgeLabel,
@@ -156,15 +153,12 @@ pre:not(.sourceCode) {
   fill: #1c2128 !important;
   stroke: #58a6ff66 !important;
   stroke-width: 2px !important;
-  rx: 8px !important;
 }
 .mermaid .cluster-label,
 .mermaid .cluster-label .nodeLabel,
 .mermaid .cluster-label foreignObject div {
   color: #d2a8ff !important;
   fill: #d2a8ff !important;
-  font-size: 1.05em !important;
-  font-weight: 600 !important;
 }
 
 /* ── Sequence diagrams ───────────────────────────────────────────── */
@@ -226,64 +220,14 @@ pre:not(.sourceCode) {
   fill: #f0f3f6 !important;
 }
 
-/* ── Side-by-side code triptych (consumer / provider / kernel) ─── */
-.triptych {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 0.6rem;
-  margin: 1.2em 0 1.6em 0;
-  align-items: stretch;
-}
-.triptych > .col {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
+/* ── Triptych + badges: colour only. Layout is in theme-neutral.css ── */
 .triptych .col-head {
-  display: block;
-  font-family: monospace;
-  font-size: 0.85em;
   color: #58a6ff;
   border-bottom: 1px solid #444c56;
-  padding: 0.25em 0;
-  margin-bottom: 0.35em;
-  font-weight: 700;
-  text-align: center;
-  letter-spacing: 0.05em;
 }
-.triptych pre.sourceCode,
-.triptych div.sourceCode {
-  font-size: 0.74em !important;
-  margin: 0 !important;
-  height: 100% !important;
-  padding: 0.5em 0.7em !important;
-}
-@media (max-width: 980px) {
-  .triptych { grid-template-columns: 1fr; }
-}
-
-/* Numbered call-out badges used in the triptych prose */
 .cnum {
-  display: inline-block;
   background: #58a6ff;
   color: #0d1117 !important;
-  font-weight: 700;
-  border-radius: 50%;
-  min-width: 1.4em;
-  height: 1.4em;
-  line-height: 1.4em;
-  padding: 0 0.2em;
-  text-align: center;
-  font-family: monospace;
-  margin-right: 0.35em;
-  font-size: 0.85em;
-  vertical-align: baseline;
-}
-/* Defensive: if a long phrase is accidentally wrapped in .cnum, at least
-   keep it readable rather than rendering dark-on-dark. */
-.cnum:has(> :nth-child(2)),
-.cnum:not(:empty):not(:where(*:only-child)) {
-  border-radius: 0.7em;
 }
 .cnum-c { background: #3fb950; }   /* consumer */
 .cnum-p { background: #d2a8ff; }   /* provider */
@@ -292,7 +236,6 @@ pre:not(.sourceCode) {
 /* ── Callout blocks ────────────────────────────────────────────── */
 .callout {
   background-color: #2d333b !important;
-  border-radius: 6px !important;
 }
 .callout-note {
   border-left-color: #58a6ff !important;
@@ -332,15 +275,7 @@ pre:not(.sourceCode) {
   border-bottom: 1px solid #444c56 !important;
 }
 
-/* ── Level tags for traits ──────────────────────────────────────── */
-.level-tag {
-  display: inline-block;
-  font-size: 0.75rem;
-  padding: 0.1em 0.5em;
-  border-radius: 4px;
-  font-weight: 700;
-  font-family: monospace;
-}
+/* ── Level tags: colour only ───────────────────────────────────── */
 .l0 { background: #58a6ff22; color: #58a6ff; border: 1px solid #58a6ff; }
 .l1 { background: #d2a8ff22; color: #d2a8ff; border: 1px solid #d2a8ff; }
 .l2 { background: #3fb95022; color: #3fb950; border: 1px solid #3fb950; }

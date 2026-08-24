@@ -4,7 +4,6 @@ project:
   render:
     - index.qmd
     - guide/*.qmd
-    - design/*.md
     - design/*.qmd
     - steering/*.md
 
@@ -36,7 +35,7 @@ website:
       - text: "Design"
         menu:
           - text: "Kernel architecture"
-            href: design/kernel-architecture.md
+            href: design/kernel-architecture.qmd
           - text: "The reactive engine"
             href: design/reactive-engine.qmd
           - text: "What it does not replace"
@@ -62,15 +61,21 @@ website:
 
 format:
   html:
+    # Light is first, so it is the default and the toggle starts bright.
+    # Each bracket's .scss is compiled only for that theme, so the two colour
+    # files never fight for specificity. Shared layout is in theme-neutral.css.
     theme:
-      dark: darkly
+      light: [cosmo, theme-light.scss]
+      dark: [darkly, theme-dark.scss]
     css:
-      - custom.css
+      - theme-neutral.css
     code-copy: true
     code-overflow: wrap
     toc: true
     toc-depth: 3
     mermaid:
-      theme: dark
+      # `neutral` renders closest to the light palette before the CSS above
+      # takes over, so a diagram is not dark-on-white for the first paint.
+      theme: neutral
     filters:
       - present-mode
