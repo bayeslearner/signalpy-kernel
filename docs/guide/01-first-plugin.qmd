@@ -44,6 +44,17 @@ greeter.inject = ["database"]
 Now `greeter` does not run when you mount it. It runs when a service named
 `database` exists — which might be immediately, might be later, might be never.
 
+::: {.callout-note}
+## You will not write this line for long
+
+`fn.inject = [...]` is the primitive spelling, used here because it shows the
+list plainly. It runs correctly and pyright rejects it — you cannot assign
+arbitrary attributes to a function. [Chapter 2](02-popo-components.qmd)
+introduces `@plugin`, which carries the list and can derive it from a Protocol,
+and `provide()`, which derives it from `needs`. Both are what you use in real
+code.
+:::
+
 ```python
 async def main():
     root = Context()
@@ -242,7 +253,9 @@ exception leaves you with a settled fiber. Do not substitute
 going through `UNLOADING` on the way, and a test that counts ticks breaks when
 that changes.
 
-That is also how [supervision](03-tools.qmd) sees failures.
+`FAILED` is also what `SupervisorService` watches. Mounting it gives failed fibers
+a restart strategy — `one_for_one`, `one_for_all` or `rest_for_one`, with backoff
+— built on this state and nothing else.
 :::
 
 ## Next

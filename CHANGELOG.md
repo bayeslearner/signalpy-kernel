@@ -30,6 +30,11 @@ provenance and the local corrections.
 
 Each is an ordinary plugin with no privileged status.
 
+- `ctx.points` — extension points: many plugins filling one named role. A
+  contribution is removed when the *contributing* plugin unloads, and a consumer
+  can read the set (`all`, `get`, `where`, `last`, `entries`) or be woken when it
+  changes (`on_change`). `ctx.tools` holds its tools, guards and approvers here
+  rather than in three hand-rolled registries.
 - `ctx.config` — YAML, dict, env and pydantic loading. One Signal per dotted key,
   so a write wakes only the readers of that key. Runtime `set()` outranks every
   loader.
@@ -44,15 +49,25 @@ Each is an ordinary plugin with no privileged status.
 - `ctx.loader` — an application as a YAML list, plugin names resolved as module
   paths. `load_app(root, "app.yml")`.
 
+### Introspection
+
+`describe(ctx)` returns a plain, JSON-serialisable snapshot of the running
+system: every fiber with its state, what it provides, what it injects, and — for
+a `PENDING` one — **which** injected service is missing. `format_tree` renders a
+snapshot as a readable tree. Both are ordinary functions, so they work on a
+context whose author never planned to inspect it. A plugin can contribute a
+diagnostic the kernel cannot know through the `diagnostics` point.
+
 ### Standalone
 
 `plugkit.signals` imports nothing from the kernel and works in a plain script.
 
 ### Verification
 
-296 tests. `test_conformance.py` holds thirteen assertions traced to
-`vendor/cordis/src/*.ts`. Every README and guide example is executed by the
-suite. `test_typing.py` runs pyright over the typed-context patterns.
+`test_conformance.py` holds 17 assertions traced to `vendor/cordis/src/*.ts` in
+the harness tree. Every README and guide example is executed by the suite,
+`test_docs_consistency.py` checks the claims that are not code, and
+`test_typing.py` runs pyright over the typed-context patterns.
 
 ### Requires
 

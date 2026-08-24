@@ -183,6 +183,8 @@ changed after construction, so the honest answer is a new object — and that is
 what happens, provided `ReactiveService` is mounted:
 
 ```python
+from plugkit import ConfigService, ReactiveService
+
 await root.plugin(ReactiveService)
 await root.plugin(ConfigService, {"dict": {"db": {"dsn": "one://"}}})
 await root.plugin(provide(Database, "database", config={"dsn": ("db.dsn", "sqlite://")}))
@@ -292,7 +294,7 @@ string is one.
 
 There is a second reason here specifically: Cordis is string-keyed, and matching
 it is what keeps dsh's documentation valid for this kernel. A type-based layer
-could be built on top — `provide()` is only 378 lines, and
+could be built on top — `provide()` is one small module, and
 [a rival policy](#where-the-kernelplugin-line-falls) is an ordinary plugin — but
 it would be a second lookup mechanism, and two ways to find a service is worse
 than one imperfect way.
@@ -322,9 +324,18 @@ plugins.
 strategy, scopes, per-object lifetimes, config binding, the wiring format. All
 policy, and policy is a plugin.
 
-`provide()` is one such policy: 378 lines, touching the kernel through exactly
-three methods — `ctx.provide`, `ctx.inject`, `ctx.effect`. Anything that can call
-those three can be a rival. `plugkit/examples/alternative_binding.py` is one:
+`provide()` is one such policy, and it reaches the kernel through a small,
+countable surface:
+
+| It calls | To |
+|---|---|
+| `ctx.provide(name, obj)` | register the constructed component |
+| `ctx.inject(names, child)` | watch config *only if* `ReactiveService` is mounted |
+| `ctx.fiber.restart()` | rebuild when a constructor argument's config key changes |
+| returning a disposer | hand teardown to the fiber |
+
+That is the whole contract. Anything that can call those can be a rival.
+`plugkit/examples/alternative_binding.py` is one:
 `provide_factory()` registers a *maker* instead of an instance, so every caller
 gets its own object — `Factory` rather than `Singleton`, in dependency-injector's
 vocabulary — and it needed no kernel change to exist.

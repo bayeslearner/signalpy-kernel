@@ -36,6 +36,17 @@ def search_plugin(ctx, config=None):
 search_plugin.inject = ["tools", "index"]
 ```
 
+Mount the registry before anything registers into it. `ToolsService` holds its
+tools, guards and approvers in extension points, so it injects `points`:
+
+```python
+from plugkit import PointsService, ToolsService
+
+await root.plugin(PointsService)
+await root.plugin(ToolsService)
+await root.plugin(search_plugin)
+```
+
 `register` is an effect, so the tool disappears when `search_plugin` unloads.
 You do not unregister it.
 
@@ -79,6 +90,9 @@ A **waterfall**: listeners wrap each other, like middleware, ending in the
 registry's own default.
 
 ```python
+from plugkit import Deny
+
+
 def policy(ctx, config=None):
     async def gate(execution, next_):
         if execution.arguments.get("path", "").startswith("/etc"):
@@ -99,6 +113,9 @@ change them would make history, audit, display, and execution disagree.
 approver returning anything but `True` all become a denial:
 
 ```python
+from plugkit import Ask
+
+
 def approval(ctx, config=None):
     ctx.on("tools/pre-execute", lambda e, next_: Ask("run this?") if e.tool.destructive else next_())
     ctx.tools.set_approver(lambda execution, reason: ask_the_human(reason))
@@ -181,6 +198,9 @@ operation shares one clock; *inner* means each attempt gets its own.
 A post-execute listener receives the result and may replace or reject it:
 
 ```python
+from plugkit import Accept
+
+
 def redact(ctx, config=None):
     async def scrub(execution, result, next_):
         if execution.name == "read_secrets":

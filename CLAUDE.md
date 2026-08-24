@@ -79,14 +79,20 @@ make a service load-bearing, which is the tier this design deleted.
 Run the tests and add dependencies with `uv`:
 
 ```bash
-uv run pytest src/plugkit/tests -q                 # the gate
-uv run --with pyright pytest src/plugkit/tests/test_typing.py
+uv run --extra dev pytest src/plugkit/tests -q      # the gate
+uv run --extra dev --with pyright pytest src/plugkit/tests/test_typing.py
 uv add <pkg>                                        # never pip/poetry
 ```
 
+`--extra dev` is not optional. It carries pytest itself, plus `pyyaml`, without
+which the loader, include and config-YAML tests fail — fifteen of them. It is the
+same set CI installs (`pip install -e ".[dev]"` in `.github/workflows/test.yml`),
+so the local gate and the CI gate are the same gate.
+
 Test config (`asyncio_mode`, `pythonpath`) is in `pyproject.toml`. Optional
 extras: `config` (dependency-injector), `hmr` (watchdog). Both degrade rather
-than fail — the suite passes with and without them, and that is deliberate.
+than fail, and the suite passes with and without them — `without-dependency-injector`
+and `bare-install` in the CI workflow are the jobs that hold that claim up.
 
 ## Working rules
 

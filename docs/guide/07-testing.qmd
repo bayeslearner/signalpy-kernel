@@ -136,6 +136,9 @@ itself.
 `ctx.tools.execute` never raises. Assert on the result:
 
 ```python
+from plugkit import PointsService, ToolsService
+
+
 async def test_the_guard_denies():
     root = Context()
     await root.plugin(PointsService)
@@ -205,6 +208,9 @@ The kernel knows a fiber's state. It does not know a connection pool's size.
 Contribute a diagnostic:
 
 ```python
+from plugkit import DIAGNOSTICS
+
+
 def database(ctx, config=None):
     pool = Pool()
     ctx.provide("database", pool)

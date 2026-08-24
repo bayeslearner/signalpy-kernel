@@ -367,42 +367,42 @@ None. This spec supersedes nothing.
     - **Properties**: Teardown matches setup
     - **Pillar**: Kernel
 
-- [ ] 2. The check
-  - [ ] 2.1 `test_docs_consistency.py` — links, paths, counts, snippet completeness
+- [x] 2. The check
+  - [x] 2.1 `test_docs_consistency.py` — links, paths, counts, snippet completeness
     - **Depends**: —
     - **Requirements**: 2.1, 2.2, 2.3, 2.4, 2.5
     - **Pillar**: Design, Documentation
 
-- [ ] 3. Doc corrections the check now enforces
-  - [ ] 3.1 `CLAUDE.md` gate command reproduces; `pyproject.toml` dev group
+- [x] 3. Doc corrections the check now enforces
+  - [x] 3.1 `CLAUDE.md` gate command reproduces via the existing `dev` extra
     - **Depends**: —
     - **Requirements**: 3.1
     - **Pillar**: Documentation
-  - [ ] 3.2 Conformance count corrected in README, spec 01, pillars, CHANGELOG
+  - [x] 3.2 Conformance count corrected in README, spec 01, pillars, CHANGELOG
     - **Depends**: 2.1
     - **Requirements**: 2.1
     - **Pillar**: Documentation
-  - [ ] 3.3 Whole-suite test counts removed from README, pillars, CHANGELOG
+  - [x] 3.3 Whole-suite test counts removed from README, pillars, CHANGELOG
     - **Depends**: 2.1
     - **Requirements**: 2.5
     - **Pillar**: Documentation
-  - [ ] 3.4 Guide chapter 3 and 7 snippets import what they name
+  - [x] 3.4 Guide chapter 3 and 7 snippets import what they name
     - **Depends**: 2.1
     - **Requirements**: 2.4
     - **Pillar**: Teaching
-  - [ ] 3.5 `README.md:59-64` duplicated iPOPO sentence removed
+  - [x] 3.5 `README.md:59-64` duplicated iPOPO sentence removed
     - **Depends**: —
     - **Pillar**: Documentation
-  - [ ] 3.6 Guide 02 `provide()` kernel-surface claim corrected; line counts removed
+  - [x] 3.6 Guide 02 `provide()` kernel-surface claim corrected; line counts removed
     - **Depends**: 1.2, 1.3
     - **Pillar**: Documentation
-  - [ ] 3.7 Guide 01 supervision link fixed; forward pointer to `@plugin` added
+  - [x] 3.7 Guide 01 supervision link fixed; forward pointer to `@plugin` added
     - **Depends**: —
     - **Pillar**: Teaching
-  - [ ] 3.8 CHANGELOG gains `ctx.points` and introspection
+  - [x] 3.8 CHANGELOG gains `ctx.points` and introspection
     - **Depends**: —
     - **Pillar**: Documentation
-  - [ ] 3.9 Spec 01 factual corrections: assertion count, `override` extra claim
+  - [x] 3.9 Spec 01 factual corrections: assertion count, `override` extra claim
     - **Depends**: —
     - **Pillar**: Design
 

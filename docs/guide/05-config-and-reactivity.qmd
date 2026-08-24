@@ -64,7 +64,7 @@ Reading config is not enough on its own — you also want to *act* when it chang
 Mount `ReactiveService` and register an effect:
 
 ```python
-from plugkit import ReactiveService
+from plugkit import ReactiveService, plugin
 
 await root.plugin(ReactiveService)
 
@@ -118,6 +118,8 @@ library is the library.
 `provide()` can read a constructor argument from config:
 
 ```python
+from plugkit import provide
+
 provide(Database, "database", config={"dsn": ("db.dsn", "sqlite://")})
 ```
 

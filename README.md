@@ -57,11 +57,9 @@ edit a file and restart the process, so few libraries needed to remove a
 component from a live program. And `import` is permanent — `sys.modules` caches
 modules and the language has no unload — so ecosystems built around load-once
 rather than solving retraction. [`iPOPO`](https://ipopo.readthedocs.io), a port
-of OSGi, is the main exception.
-
-[`iPOPO`](https://ipopo.readthedocs.io), a port of OSGi, is the main exception,
-and [it has its own limits](docs/design/why-not-ipopo.qmd) — its lifecycle
-callbacks cannot be `async`, and it does not undo a component's effects either.
+of OSGi, is the main exception, and
+[it has its own limits](docs/design/why-not-ipopo.qmd) — its lifecycle callbacks
+cannot be `async`, and it does not undo a component's effects either.
 
 ## Why one rule is enough to build on
 
@@ -695,16 +693,19 @@ Everything above the kernel is plugkit's own, and none of it exists upstream:
 | `ToolsService` | the five-stage permission pipeline |
 | `FileLoader` | a concrete loader resolving plugin names as module paths |
 | subscript access | `ctx["db.primary"]`, reaching names that are not identifiers |
-| the conformance suite | thirteen assertions traced to `vendor/cordis/src/*.ts` |
+| the conformance suite | 17 assertions traced to `vendor/cordis/src/*.ts` |
 
 ## Development
 
 Run the test suite:
 
 ```bash
-uv run pytest src/plugkit/tests -q                              # 296 passed
-uv run --with pyright pytest src/plugkit/tests/test_typing.py   # typing checks
+uv run --extra dev pytest src/plugkit/tests -q                  # the gate
+uv run --extra dev --with pyright pytest src/plugkit/tests/test_typing.py
 ```
+
+`--extra dev` carries pytest and `pyyaml`; without it the loader and config-YAML
+tests cannot run. It is the set CI installs.
 
 - Architecture: [`docs/design/kernel-architecture.md`](docs/design/kernel-architecture.md)
 - Project pillars: [`docs/steering/pillars.md`](docs/steering/pillars.md)

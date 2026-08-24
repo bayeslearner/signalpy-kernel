@@ -19,9 +19,9 @@ adopt.
 
 | Pillar | State | Evidence |
 |---|---|---|
-| **Kernel** | 🟢 strong | 296 passing: the vendored suite, 13 conformance assertions, and one file per feature [src:src/plugkit/tests/] |
+| **Kernel** | 🟢 strong | The vendored suite, 17 conformance assertions, and one file per feature, all green [src:src/plugkit/tests/] |
 | **Adoptability** | 🟢 strong | `binding.provide()` keeps components POPO; `test_component_needs_no_kernel_at_all` is the guard [src:src/plugkit/tests/test_binding.py] |
-| **Conformance** | 🟡 partial | 13 assertions cover the load-bearing semantics. Of DeepSeek Harness's 58 service keys, one is implemented (`ctx.tools`) [src:src/plugkit/services/tools.py] |
+| **Conformance** | 🟡 partial | 17 assertions cover the load-bearing semantics. Of DeepSeek Harness's 58 service keys, one is implemented (`ctx.tools`) [src:src/plugkit/services/tools.py] |
 | **Teaching** | 🟢 strong | Eight chapters, from why it exists to testing, every example executed by `test_guide_examples.py` and `test_readme_examples.py` [src:docs/guide/]. No API reference page yet |
 | **Packaging** | 🟡 partial | One package, `plugkit` 0.1.0, with honest `config`/`hmr` extras. Unreleased; the PyPI name is claimed but nothing is published. The vendored kernel is a fork, not a dependency [src:src/plugkit/VENDORED.md] |
 
@@ -30,8 +30,10 @@ adopt.
 **Packaging is the live risk.** The name is claimed, nothing is published, and
 until `pip install plugkit` works the adoptability argument is theoretical.
 
-**Conformance is a ceiling, not a gap.** Thirteen assertions is the right number
-for what exists. It grows as services are added, not before.
+**Conformance is a ceiling, not a gap.** The assertion count is the right number
+for what exists. It grows as services are added, not before, and
+`test_docs_consistency.py` fails when a doc states a number the suite no longer
+holds.
 
 **Scope is deliberately narrow.** plugkit is a kernel plus five services. It has
 no auth, credentials, storage, tracing or transport layer, and adding them is not

@@ -281,7 +281,9 @@ after its side effects had already happened.
 - A composition with no `ReactiveService`: bindings activate, config changes do
   not rebuild.
 - A composition with no `dependency-injector`: `ConfigService` loads dicts and
-  YAML; `load_env`/`load_pydantic`/`override` raise a named error.
+  YAML; `load_env`/`load_pydantic` raise a named error. (`override` was listed
+  here in error — it uses no third-party code and works bare
+  [src:src/plugkit/services/config.py:213].)
 - A callable stored as component *data* read through the context must not be
   rebound as a method.
 - `Ask` with no approver denies.
@@ -289,8 +291,9 @@ after its side effects had already happened.
 
 ## Testing strategy
 
-- **Conformance** (`test_conformance.py`): the primary gate. Thirteen assertions
-  traced to `vendor/cordis/src/*.ts`, not to this implementation.
+- **Conformance** (`test_conformance.py`): the primary gate. Assertions traced to
+  `vendor/cordis/src/*.ts`, not to this implementation. The count is checked
+  against the docs by `test_docs_consistency.py` [spec:05-doc-code-consistency].
 - **Vendored suite**: upstream's, kept passing.
 - **Per-feature**: one file each, asserting the property the feature exists to
   provide rather than its API surface.

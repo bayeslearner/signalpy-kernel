@@ -113,6 +113,8 @@ That imports `myapp.plugins` and takes `database` off it.
 `FileLoader.register` resolves a name without importing:
 
 ```python
+from plugkit import FileLoader
+
 await root.plugin(FileLoader)
 root.loader.register("myapp.database", fake_database_module)
 await root.loader.create({"name": "myapp.database"})
