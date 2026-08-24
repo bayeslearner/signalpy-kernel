@@ -1,7 +1,7 @@
 ---
 spec_id: 05-doc-code-consistency
-status: ACTIVE
-closed_as: null
+status: CLOSED
+closed_as: SHIPPED
 since: 2026-08-24
 until: null
 epic: meta-layer
@@ -406,11 +406,11 @@ None. This spec supersedes nothing.
     - **Depends**: —
     - **Pillar**: Design
 
-- [ ] 4. Close
-  - [ ] 4.1 Full gate green; `pillars.md` re-derived from measurement
+- [x] 4. Close
+  - [x] 4.1 Full gate green; `pillars.md` re-derived from measurement
     - **Depends**: 1.3, 2.1, 3.9
     - **Pillar**: Design
-  - [>] 4.2 Supervision guide chapter → `06-guide-gaps`
+  - [>] 4.2 Supervision guide chapter → `06-guide-gaps` (DRAFT, opened)
 
 ## Notes
 
@@ -437,3 +437,23 @@ The fifteen findings, as audited:
 ## Log
 
 **2026-08-24** — Audited docs against code. Fifteen findings. Spec opened.
+
+**2026-08-24** — Shipped. All fifteen closed: three code fixes with a regression
+test each, eleven doc corrections, and `test_docs_consistency.py` as the answer to
+M1 — the reason the eleven survived.
+
+The check was verified by breaking two claims deliberately and watching it name
+the file and line of each [src:src/plugkit/tests/test_docs_consistency.py].
+
+Two things found while building it that were not in the original fifteen:
+
+- The fence-pairing regex in the first draft of the check desynchronised on
+  chapter 6's YAML block, so every Python block after it was read as prose. The
+  check now pairs by scanning. A regex over markdown fences is wrong whenever a
+  page mixes languages, which every page here does.
+- `points.get()` needed no new test *file* — the bug was invisible because all 32
+  existing tests used the default `order=0`. Coverage was complete and the
+  property was still wrong, which is the argument for testing the property rather
+  than the surface.
+
+Task 4.2 carried to `06-guide-gaps`. Publishing remains LO's call and untouched.
