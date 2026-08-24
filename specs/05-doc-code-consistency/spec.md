@@ -351,7 +351,7 @@ None. This spec supersedes nothing.
 ## Tasks
 
 - [ ] 1. Code fixes
-  - [ ] 1.1 `points.get()` resolves by arrival, not sort position
+  - [x] 1.1 `points.get()` resolves by arrival, not sort position
     - **Depends**: —
     - **Requirements**: 1.1
     - **Properties**: Key lookup is arrival-ordered

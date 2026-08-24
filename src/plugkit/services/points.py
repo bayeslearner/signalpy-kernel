@@ -170,12 +170,15 @@ class PointsService(Service):
 
         With several contributions under one key — possible unless a contributor
         asked for `unique` — the last one added wins, matching `last()`.
+
+        Resolved on `seq`, not on position in `entries()`. `entries()` sorts by
+        `order` first, so taking the last match there returns the highest
+        `order`, which is the *earlier* arrival whenever the newer contribution
+        carries a lower `order`. `get` and `last` are both "the current one" and
+        must not disagree.
         """
-        found = None
-        for entry in self.entries(point):
-            if entry.key == key:
-                found = entry.value
-        return found
+        matches = [entry for entry in self.entries(point) if entry.key == key]
+        return max(matches, key=lambda e: e.seq).value if matches else None
 
     def where(self, point: str, **props: Any) -> list[Any]:
         """Contributed values whose properties match all of `props`."""

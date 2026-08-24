@@ -133,6 +133,22 @@ async def test_get_by_key():
     assert root.points.get("p", "absent") is None
 
 
+async def test_get_resolves_by_arrival_not_by_order():
+    """Two contributions, one key, different `order`. Arrival decides.
+
+    `get` and `last` are both "the current one" for a key, so they must not
+    disagree. Sorting by `order` first made `get` return whichever sorted last,
+    which is the *first* arrival when the newer one carries a lower `order`.
+    Every other test here uses the default `order=0`, where the two agree.
+    """
+    root = await a_root()
+    root.points.add("p", "registered-first", key="k", order=10)
+    root.points.add("p", "registered-second", key="k", order=1)
+
+    assert root.points.get("p", "k") == "registered-second"
+    assert root.points.get("p", "k") == root.points.last("p")
+
+
 async def test_where_matches_on_properties():
     root = await a_root()
     root.points.add("p", "get-handler", method="GET")
