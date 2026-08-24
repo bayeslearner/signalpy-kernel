@@ -72,12 +72,23 @@ def _python_blocks(text: str) -> list[str]:
     return blocks
 
 
+#: Generated, not hand-authored: `guide-one.qmd` concatenates the eight guide
+#: chapters into one page. Its internal chapter cross-links (`02-popo-components.qmd`)
+#: resolve relative to `guide/` when quarto renders them into the single page, so
+#: the link checker would read them as broken repo paths. It has no own truth to
+#: hold to the code, so it is not a CURRENT doc.
+_GENERATED_DOCS = {"docs/guide-one.qmd"}
+
+
 def _current_docs() -> list[Path]:
     """Docs that describe the present. A stale count here is a defect."""
     files = [REPO / name for name in ("README.md", "CLAUDE.md", "CHANGELOG.md")]
     for pattern in ("docs/*.qmd", "docs/guide/*.qmd", "docs/design/*", "docs/steering/*"):
         files += sorted(REPO.glob(pattern))
-    return [f for f in files if f.is_file() and f.suffix in (".md", ".qmd")]
+    return [
+        f for f in files
+        if f.is_file() and f.suffix in (".md", ".qmd") and _rel(f) not in _GENERATED_DOCS
+    ]
 
 
 def _archival_docs() -> list[Path]:
